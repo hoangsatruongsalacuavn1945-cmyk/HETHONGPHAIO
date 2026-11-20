@@ -1,0 +1,36 @@
+{
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/map",
+        "destination": "/map.html"
+      },
+      {
+        "source": "/3d",
+        "destination": "/water_map_3d.html"
+      },
+      {
+        "source": "/sentinel",
+        "destination": "/sentinel.html"
+      },
+      {
+        "source": "/cloud",
+        "destination": "/cloud_dashboard_mobile.html"
+      },
+      {
+        "source": "/console",
+        "destination": "/console.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

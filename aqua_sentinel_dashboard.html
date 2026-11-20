@@ -1,0 +1,2410 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>USV Aqua-Sentinel // Hệ Thống Quan Trắc Thủy Văn & Phao Nổi AI Thông Minh</title>
+  <meta name="description" content="Hệ thống phao quan trắc thủy văn tự động 4G LTE kết hợp LoRa, bản đồ vệ tinh Google Maps HD và mô phỏng 3D mặt nước theo chuẩn QCVN 08:2023/BTNMT." />
+  <meta property="og:title" content="USV Aqua-Sentinel // Hệ Thống Quan Trắc Thủy Văn & Phao Nổi AI" />
+  <meta property="og:description" content="Quan trắc chất lượng nước thời gian thực 4G LTE, bản đồ vệ tinh Google Maps HD, định vị trực tuyến và cảnh báo ranh giới tự động." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230b0f19' stroke='%2306b6d4' stroke-width='6'/><path d='M30 65 Q 50 35, 70 65' fill='none' stroke='%2322d3ee' stroke-width='5'/><circle cx='50' cy='35' r='8' fill='%2310b981'/></svg>" />
+
+  <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate950: '#0b0f19',
+            slate900: '#111827',
+            cyanNeon: '#06b6d4',
+            cyanGlow: '#22d3ee'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-deep: #0b0f19;
+      --cyan-neon: #06b6d4;
+      --cyan-bright: #22d3ee;
+    }
+    body {
+      background-color: var(--bg-deep);
+      background-image:
+        radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 35%),
+        radial-gradient(circle at 85% 80%, rgba(14, 165, 233, 0.07) 0%, transparent 35%),
+        linear-gradient(to bottom, rgba(11, 15, 25, 0.98), rgba(11, 15, 25, 1));
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    /* Tech Grid Overlay */
+    .bg-tech-grid {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(6, 182, 212, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(6, 182, 212, 0.04) 1px, transparent 1px);
+    }
+    /* Glassmorphism Cards with Cyan Neon Border */
+    .glass-card {
+      background: rgba(17, 24, 39, 0.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(6, 182, 212, 0.28);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), inset 0 0 12px rgba(6, 182, 212, 0.05);
+      transition: all 0.25s ease;
+    }
+    .glass-card:hover {
+      border-color: rgba(34, 211, 238, 0.55);
+      box-shadow: 0 8px 32px 0 rgba(6, 182, 212, 0.14), inset 0 0 16px rgba(6, 182, 212, 0.08);
+    }
+    .glass-card-danger {
+      border-color: rgba(239, 68, 68, 0.75) !important;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.3), inset 0 0 15px rgba(239, 68, 68, 0.15) !important;
+      animation: pulseDanger 1.8s infinite;
+    }
+    @keyframes pulseDanger {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.85); }
+      50% { border-color: rgba(239, 68, 68, 0.3); }
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(6, 182, 212, 0.35);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(34, 211, 238, 0.7);
+    }
+    /* Leaflet Customizations */
+    .leaflet-container {
+      background: #090d16 !important;
+      font-family: 'Inter', sans-serif;
+    }
+    .usv-marker-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .usv-pulse-ring {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid #22d3ee;
+      animation: sonarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes sonarPing {
+      0% { transform: scale(0.5); opacity: 0.9; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
+    /* Gauge Circular Animation */
+    .wqi-ring-progress {
+      transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+      /* Live Sync Pulse Effect on Data Update */
+    @keyframes liveDataFlash {
+      0% { box-shadow: 0 0 0 rgba(6, 182, 212, 0); border-color: rgba(6, 182, 212, 0.28); }
+      40% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.45); border-color: #22d3ee; }
+      100% { box-shadow: 0 0 0 rgba(6, 182, 212, 0); border-color: rgba(6, 182, 212, 0.28); }
+    }
+    .data-updated {
+      animation: liveDataFlash 0.75s ease-out;
+    }
+  </style>
+  <link rel="manifest" href="/manifest.json">
+</head>
+<body class="bg-tech-grid min-h-screen text-slate-200 antialiased selection:bg-cyan-500 selection:text-slate-950">
+
+  <!-- TOP NAVIGATION & TELEMETRY HEADER -->
+  <header class="sticky top-0 z-50 border-b border-cyan-500/30 bg-[#0b0f19]/90 backdrop-blur-xl">
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3">
+        <div class="relative flex items-center justify-center w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-400/40 shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+          <i data-lucide="radar" class="w-6 h-6 text-cyan-400 animate-spin" style="animation-duration: 8s;"></i>
+          <span id="connDot" class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 ring-4 ring-[#0b0f19]"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display font-bold text-base sm:text-lg tracking-wider text-white uppercase">
+              AQUA-SENTINEL <span class="text-cyan-400">USV-01</span>
+            </h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              QCVN 08:2023/BTNMT
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-mono flex items-center gap-2">
+            <span>ID: VN-HYDRO-4G</span>
+            <span class="text-slate-600">•</span>
+            <span id="headerTimestamp">Đang đồng bộ...</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Status Pill Bar & Controls -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <!-- Quick Source Selector Dropdown -->
+        <div class="relative">
+          <select id="quickSourceSelect" onchange="switchSourceMode(this.value)" class="bg-slate-900 border border-cyan-500/50 text-cyan-300 text-xs font-mono font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+            <option value="auto">⚡ Tự động (Auto-Failover)</option>
+            <option value="local">📡 LoRa GCS (USB/Local)</option>
+            <option value="cloud">🛰️ 4G Viettel (Google Sheets)</option>
+            <option value="sim">🧪 Giả Lập (Digital Twin)</option>
+          </select>
+        </div>
+
+        <!-- Google Maps Satellite Fullscreen Link Button -->
+        <a href="/map" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-xs font-mono font-semibold transition shadow-[0_0_12px_rgba(16,185,129,0.25)]" title="Mở Bản Đồ Vệ Tinh Google Maps Trực Tuyến Toàn Màn Hình">
+          <i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>
+          <span>Bản đồ Vệ tinh HD</span>
+        </a>
+
+        <!-- 3D Map Direct Link Button -->
+        <a href="/3d" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-400/40 text-indigo-300 text-xs font-mono font-semibold transition" title="Mở Không Gian 3D WebGL">
+          <i data-lucide="box" class="w-3.5 h-3.5"></i>
+          <span>Mô phỏng 3D</span>
+        </a>
+
+        <!-- Google Sheets Direct Log Button -->
+        <a href="https://docs.google.com/spreadsheets/d/188ibulljtyfxsrM7BwbESRmD0rsrUSVqY60F3cL4FII/edit" target="_blank" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-600/40 text-cyan-300 text-xs font-mono font-semibold transition" title="Mở Sổ Nhật Ký Google Sheets">
+          <i data-lucide="table" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Google Sheets</span>
+        </a>
+
+        <!-- Sound Alert Toggle Button -->
+        <button id="soundBtn" onclick="toggleSound()" class="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 text-slate-300 transition" title="Bật/Tắt Còi Báo Động">
+          <i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>
+        </button>
+
+        <!-- Mode Indicator (Live API vs Digital Twin) -->
+        <div id="dataSourceBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/30 text-xs font-mono">
+          <span id="sourcePulse" class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <span id="sourceText" class="text-cyan-300 font-semibold">SIMULATION (4s POLL)</span>
+        </div>
+
+        <!-- 4G LTE Quick Pill -->
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/90 border border-slate-700/80 text-xs font-mono">
+          <i data-lucide="signal" class="w-4 h-4 text-emerald-400"></i>
+          <span class="text-slate-300">VIETTEL 4G:</span>
+          <span id="headerRssi" class="text-emerald-400 font-semibold">-67 dBm</span>
+        </div>
+
+        <!-- Polling Countdown Ring -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-slate-700/80 text-xs font-mono" title="Chu kỳ Fetch API 4 giây (?mode=status)">
+          <i data-lucide="refresh-cw" id="pollSpinner" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span id="pollCountdown" class="text-slate-300">4.0s</span>
+        </div>
+
+        <!-- Simulation Scenario Trigger Dropdown -->
+        <div class="relative">
+          <select id="scenarioSelect" onchange="applyScenario(this.value)" class="bg-slate-900/90 border border-cyan-500/40 text-cyan-200 text-xs font-mono rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-400 cursor-pointer">
+            <option value="normal">Kịch bản: Nước Tốt (A1/A2)</option>
+            <option value="polluted">Kịch bản: Ô Nhiễm Đột Ngột (C)</option>
+            <option value="mud_hit">Kịch bản: Chạm Bùn Đáy (CT1)</option>
+            <option value="storm_tilt">Kịch bản: Sóng Lớn Nghiêng Phao</option>
+          </select>
+        </div>
+
+        <!-- API Endpoint Config Button -->
+        <button onclick="toggleConfigModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/50 text-cyan-300 text-xs font-mono font-semibold transition">
+          <i data-lucide="settings-2" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Cấu hình API</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- GLOBAL ALERT BANNER (Hidden when normal) -->
+  <div id="globalAlertBanner" class="hidden bg-red-950/90 border-b border-red-500/60 backdrop-blur-md">
+    <div class="max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between text-xs sm:text-sm font-mono text-red-200">
+      <div class="flex items-center gap-2">
+        <i data-lucide="triangle-alert" class="w-5 h-5 text-red-400 shrink-0 animate-bounce"></i>
+        <span id="globalAlertText" class="font-semibold">CẢNH BÁO HỆ THỐNG: Phát hiện thông số vượt ngưỡng an toàn!</span>
+      </div>
+      <span class="px-2 py-0.5 rounded bg-red-500/20 border border-red-400/40 text-[11px] uppercase">Priority: High</span>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD CONTAINER -->
+  <main class="max-w-[1600px] mx-auto px-3 sm:px-6 py-5 space-y-5">
+
+    <!-- ===================================================================== -->
+    <!-- ROW 1: VN-WQI MASTER CARD + 6 CORE HYDROLOGICAL SENSOR CARDS          -->
+    <!-- ===================================================================== -->
+        <!-- ===================================================================== -->
+    <!-- REAL-TIME HARDWARE SYNCHRONIZATION PIPELINE (TRỰC QUAN HÓA ĐỒNG BỘ)    -->
+    <!-- ===================================================================== -->
+    <div id="syncPipelineCard" class="glass-card rounded-2xl p-4 border border-cyan-500/40 shadow-[0_0_25px_rgba(6,182,212,0.15)] font-mono">
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+          <span class="text-xs font-bold text-white uppercase tracking-wider">HỆ THỐNG ĐỒNG BỘ DỮ LIỆU THỜI GIAN THỰC (LIVE HARDWARE STREAM)</span>
+          <span id="syncFreshBadge" class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+            ĐÃ ĐỒNG BỘ 100%
+          </span>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-slate-400">
+          <span>Gói tin: <strong id="pipeSeq" class="text-cyan-300 font-bold">#2605</strong></span>
+          <span>•</span>
+          <span>Cập nhật: <strong id="pipeAge" class="text-emerald-400 font-bold">Vừa xong</strong></span>
+          <span>•</span>
+          <span>Độ trễ: <strong id="pipeLatency" class="text-cyan-300 font-bold">38 ms</strong></span>
+        </div>
+      </div>
+
+      <!-- Interactive Pipeline Nodes -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        
+        <!-- Node 1: Buoy ESP32-S3 Hardware -->
+        <div id="pipeNode1" class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 relative overflow-hidden transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 1. PHAO USV-01
+            </span>
+            <span class="text-[10px] text-emerald-400 font-bold">CẢM BIẾN THẬT</span>
+          </div>
+          <div class="text-white font-bold truncate">
+            pH <span id="nodePh" class="text-cyan-300">5.82</span> • DO <span id="nodeDo" class="text-sky-300">6.67</span>
+          </div>
+          <div class="text-[10px] text-slate-400 flex justify-between">
+            <span>Nhiệt: <strong id="nodeTemp" class="text-amber-300">30.5°C</strong></span>
+            <span>Độ đục: <strong id="nodeNtu" class="text-slate-300">4.0 NTU</strong></span>
+          </div>
+        </div>
+
+        <!-- Node 2: Wireless LoRa 433MHz -->
+        <div id="pipeNode2" class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> 2. SÓNG LORA 433MHz
+            </span>
+            <span class="text-[10px] text-cyan-300 font-bold">TỶ LỆ LỖI 0%</span>
+          </div>
+          <div class="text-white font-bold truncate">
+            RSSI: <span id="nodeRssi" class="text-emerald-400">-19 dBm</span> (Cực Tốt)
+          </div>
+          <div class="text-[10px] text-slate-400 flex justify-between">
+            <span>Chất lượng SNR: <strong class="text-cyan-300">+10.5 dB</strong></span>
+            <span>Mã CRC: <strong class="text-emerald-400">100% OK</strong></span>
+          </div>
+        </div>
+
+        <!-- Node 3: Ground Station (GCS COM11) -->
+        <div id="pipeNode3" class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span> 3. TRẠM BỜ GCS
+            </span>
+            <span class="text-[10px] text-indigo-300 font-bold">COM11 (CH340)</span>
+          </div>
+          <div class="text-white font-bold truncate">
+            Baudrate: <span class="text-indigo-300">115200 bps</span>
+          </div>
+          <div class="text-[10px] text-slate-400 flex justify-between">
+            <span>Nhiệt chip GCS: <strong class="text-slate-300">58.3°C</strong></span>
+            <span>Hàng đợi: <strong class="text-emerald-400">0 nghẽn</strong></span>
+          </div>
+        </div>
+
+        <!-- Node 4: Google Cloud & Web Sync -->
+        <div id="pipeNode4" class="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-1 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-slate-300 uppercase font-bold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> 4. GOOGLE CLOUD
+            </span>
+            <span class="text-[10px] text-cyan-300 font-bold">24/7 ONLINE</span>
+          </div>
+          <div class="text-white font-bold truncate">
+            Google Sheets: <span class="text-emerald-400 font-bold">ACTIVE</span>
+          </div>
+          <div class="text-[10px] text-slate-300 flex justify-between">
+            <span>Chu kỳ: <strong class="text-cyan-300">3.0 giây/gói</strong></span>
+            <span>Đồng bộ: <strong class="text-emerald-300">TỰ ĐỘNG</strong></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- 1. THẺ TỔNG QUAN VN-WQI (4 Columns on Desktop) -->
+      <div id="wqiCard" class="glass-card rounded-2xl p-5 lg:col-span-4 flex flex-col justify-between relative overflow-hidden">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span class="text-[11px] font-mono uppercase tracking-widest text-cyan-400 block">Chỉ Số Chất Lượng Nước Việt Nam</span>
+            <h2 class="font-display text-xl font-bold text-white mt-0.5">VN-WQI TỔNG HỢP</h2>
+          </div>
+          <span id="wqiGradeBadge" class="px-3 py-1 rounded-lg font-mono font-bold text-sm bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            HẠNG A1
+          </span>
+        </div>
+
+        <!-- Circular Gauge SVG -->
+        <div class="my-4 flex flex-col sm:flex-row items-center justify-around gap-4">
+          <div class="relative w-44 h-44 flex items-center justify-center shrink-0">
+            <svg class="w-full h-full" viewBox="0 0 160 160">
+              <!-- Background Track -->
+              <circle cx="80" cy="80" r="66" fill="none" stroke="rgba(30, 41, 59, 0.8)" stroke-width="12" />
+              <!-- Dashed Tech Inner Ring -->
+              <circle cx="80" cy="80" r="52" fill="none" stroke="rgba(6, 182, 212, 0.2)" stroke-width="1.5" stroke-dasharray="4 4" />
+              <!-- Dynamic WQI Ring (Circumference = 2 * PI * 66 ≈ 414.69) -->
+              <circle id="wqiGaugeCircle" class="wqi-ring-progress" cx="80" cy="80" r="66" fill="none"
+                stroke="#06b6d4" stroke-width="12" stroke-linecap="round"
+                stroke-dasharray="414.69" stroke-dashoffset="30" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span class="text-[10px] font-mono uppercase text-slate-400">Điểm WQI</span>
+              <span id="wqiScoreVal" class="font-mono text-4xl font-extrabold text-white tracking-tight">93</span>
+              <span id="wqiColorLabel" class="text-[11px] font-mono font-semibold text-cyan-400 mt-0.5">RẤT TỐT</span>
+            </div>
+          </div>
+
+          <!-- QCVN 08:2023 Classification Legend -->
+          <div class="w-full space-y-1.5 text-xs font-mono">
+            <div class="text-[11px] text-slate-400 mb-1 font-sans font-medium">Thang phân loại QCVN 08:2023/BTNMT:</div>
+            <div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70 border-l-4 border-cyan-400">
+              <span class="text-cyan-300 font-semibold">A1 (&gt;90)</span>
+              <span class="text-slate-400 text-[11px]">Cấp nước sinh hoạt</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70 border-l-4 border-emerald-500">
+              <span class="text-emerald-400 font-semibold">A2 (76-90)</span>
+              <span class="text-slate-400 text-[11px]">Bảo tồn thủy sinh</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70 border-l-4 border-yellow-400">
+              <span class="text-yellow-300 font-semibold">B1 (51-75)</span>
+              <span class="text-slate-400 text-[11px]">Tưới tiêu thủy lợi</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70 border-l-4 border-orange-500">
+              <span class="text-orange-400 font-semibold">B2 (26-50)</span>
+              <span class="text-slate-400 text-[11px]">Giao thông thủy</span>
+            </div>
+            <div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70 border-l-4 border-red-500">
+              <span class="text-red-400 font-semibold">C (&le;25)</span>
+              <span class="text-slate-400 text-[11px]">Ô nhiễm nặng</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Recommendation -->
+        <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+          <span class="text-slate-400">Khuyến nghị sử dụng:</span>
+          <span id="wqiAdvice" class="font-medium text-cyan-300 text-right">Đạt chuẩn cấp nước sinh hoạt &amp; thủy sinh</span>
+        </div>
+      </div>
+
+      <!-- 2. THẺ CHỈ SỐ CẢM BIẾN THỦY VĂN (8 Columns -> 2x3 Grid) -->
+      <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        
+        <!-- Card 2.1: pH Sensor -->
+        <div id="phCard" class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <i data-lucide="flask-conical" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase text-slate-400">Độ pH Nguồn Nước</h3>
+                <p class="text-[11px] text-slate-500 font-mono">Chuẩn: 6.50 - 8.50</p>
+              </div>
+            </div>
+            <span id="phStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              BÌNH THƯỜNG
+            </span>
+          </div>
+
+          <div class="my-3 flex items-baseline justify-between">
+            <div>
+              <span id="valPh" class="font-mono text-3xl font-bold text-white">7.28</span>
+              <span class="text-xs font-mono text-cyan-400 ml-1">pH</span>
+            </div>
+            <div class="text-right font-mono text-xs text-slate-400">
+              Điện thế: <span id="valPhMv" class="text-slate-200">-16.4 mV</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+              <span>Axit (0)</span>
+              <span class="text-emerald-400">An toàn (6.5-8.5)</span>
+              <span>Kiềm (14)</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden relative">
+              <div id="phBar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-500" style="width: 52%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2.2: Oxy Hòa Tan (DO - Henry's Law) -->
+        <div id="doCard" class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400">
+                <i data-lucide="wind" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase text-slate-400">Oxy Hòa Tan (DO)</h3>
+                <p class="text-[11px] text-slate-500 font-mono">Định luật Henry (0-14 mg/L)</p>
+              </div>
+            </div>
+            <span id="doStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              GIÀU OXY
+            </span>
+          </div>
+
+          <div class="my-3 flex items-baseline justify-between">
+            <div>
+              <span id="valDo" class="font-mono text-3xl font-bold text-white">7.65</span>
+              <span class="text-xs font-mono text-sky-400 ml-1">mg/L</span>
+            </div>
+            <div class="text-right font-mono text-xs">
+              <span class="text-slate-400">Bão hòa:</span>
+              <span id="valDoSat" class="text-sky-300 font-semibold">96.8%</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+              <span>DO Bão hòa lý thuyết (Henry):</span>
+              <span id="valDoTheo" class="text-slate-200">7.90 mg/L</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div id="doBar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-300 rounded-full transition-all duration-500" style="width: 55%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2.3: Tổng Khoáng TDS & Độ Dẫn Điện EC -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+                <i data-lucide="zap" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase text-slate-400">Khoáng TDS &amp; Độ Dẫn EC</h3>
+                <p class="text-[11px] text-slate-500 font-mono">Tỷ lệ K = 0.50 (Bù nhiệt 25°C)</p>
+              </div>
+            </div>
+            <span id="tdsStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              NƯỚC NGỌT
+            </span>
+          </div>
+
+          <div class="my-3 grid grid-cols-2 gap-2 pt-1">
+            <div class="p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+              <span class="text-[10px] font-mono text-slate-400 block">TDS (Tổng chất rắn)</span>
+              <span id="valTds" class="font-mono text-2xl font-bold text-white">184</span>
+              <span class="text-[11px] font-mono text-indigo-400">ppm</span>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+              <span class="text-[10px] font-mono text-slate-400 block">Độ dẫn điện EC</span>
+              <span id="valEc" class="font-mono text-2xl font-bold text-cyan-300">368</span>
+              <span class="text-[11px] font-mono text-cyan-400">&mu;S/cm</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+            <span>Độ mặn quy đổi (Salinity):</span>
+            <span id="valSalinity" class="text-slate-200 font-semibold">0.18 PSU (ppt)</span>
+          </div>
+        </div>
+
+        <!-- Card 2.4: Độ Đục Quang Học (Turbidity NTU) -->
+        <div id="ntuCard" class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                <i data-lucide="droplets" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase text-slate-400">Độ Đục Quang Học (NTU)</h3>
+                <p class="text-[11px] text-slate-500 font-mono">Tán xạ hồng ngoại 860nm (0-1000)</p>
+              </div>
+            </div>
+            <span id="ntuStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              NƯỚC TRONG
+            </span>
+          </div>
+
+          <div class="my-3 flex items-baseline justify-between">
+            <div>
+              <span id="valNtu" class="font-mono text-3xl font-bold text-white">14.2</span>
+              <span class="text-xs font-mono text-amber-400 ml-1">NTU</span>
+            </div>
+            <div class="text-right font-mono text-xs text-slate-400">
+              TSS ước tính: <span id="valTss" class="text-slate-200">18.5 mg/L</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+              <span>0 NTU</span>
+              <span>Ngưỡng đục: 100 NTU</span>
+              <span>1000 NTU</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div id="ntuBar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500 rounded-full transition-all duration-500" style="width: 4%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2.5: Nhiệt Độ Nước (DS18B20) -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                <i data-lucide="thermometer" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase text-slate-400">Nhiệt Độ Nước (DS18B20)</h3>
+                <p class="text-[11px] text-slate-500 font-mono">Đầu dò chống nước 1-Wire</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              BÙ NHIỆT AUTO
+            </span>
+          </div>
+
+          <div class="my-3 flex items-baseline justify-between">
+            <div>
+              <span id="valTemp" class="font-mono text-3xl font-bold text-white">27.4</span>
+              <span class="text-xs font-mono text-rose-400 ml-1">&deg;C</span>
+            </div>
+            <div class="text-right font-mono text-xs text-slate-400">
+              Chênh lệch đáy: <span id="valTempDelta" class="text-cyan-300">-1.6 &deg;C</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+              <span>0&deg;C</span>
+              <span>Nhiệt đới chuẩn (20-32&deg;C)</span>
+              <span>50&deg;C</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div id="tempBar" class="h-full bg-gradient-to-r from-cyan-400 via-emerald-400 to-rose-500 rounded-full transition-all duration-500" style="width: 55%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2.6: Lồng Tời Cảm Biến & Cảnh Báo Chạm Bùn Đáy (CT1) -->
+        <div id="winchCard" class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400">
+                <i data-lucide="anchor" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-mono uppercase text-slate-400">Tời Cảm Biến &amp; Đáy (CT1)</h3>
+                <p class="text-[11px] text-slate-500 font-mono">Hành trình: 0.0m &rarr; 2.0m</p>
+              </div>
+            </div>
+            <span id="ct1Badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              CT1: AN TOÀN
+            </span>
+          </div>
+
+          <div class="my-3 flex items-baseline justify-between">
+            <div>
+              <span id="valDepth" class="font-mono text-3xl font-bold text-white">0.30</span>
+              <span class="text-xs font-mono text-teal-400 ml-1">m (Độ sâu)</span>
+            </div>
+            <div class="text-right font-mono text-xs">
+              <span class="text-slate-400">Trạng thái:</span>
+              <span id="valWinchState" class="text-cyan-300 font-semibold block">TẦNG MẶT</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 text-[11px] font-mono">
+            <div class="flex items-center gap-1.5">
+              <span id="ct1Led" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span class="text-slate-300">Chạm bùn CT1: <strong id="valCt1Text" class="text-emerald-400">OFF (0)</strong></span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-slate-400">CT2 (Home): <strong id="valCt2Text" class="text-cyan-300">ON (1)</strong></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- ROW 2: 3-TIER WATER COLUMN PROFILER + GPS MAP & KINEMATICS            -->
+    <!-- ===================================================================== -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- 3. BẢNG KHẢO SÁT 3 TẦNG NƯỚC ĐỘ SÂU (Water Column Profiler - 6 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-6 flex flex-col justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+          <div>
+            <span class="text-[11px] font-mono uppercase tracking-widest text-cyan-400 block">Vertical Hydrological Profiling</span>
+            <h2 class="font-display text-lg font-bold text-white">KHẢO SÁT MẶT CẮT 3 TẦNG ĐỘ SÂU</h2>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="triggerWinchCycle()" class="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-xs font-mono font-semibold flex items-center gap-1.5 transition" title="Kích hoạt chu trình đo tự động 3 tầng">
+              <i data-lucide="arrow-down-up" class="w-3.5 h-3.5"></i>
+              <span>Quét Tời 3 Tầng</span>
+            </button>
+            <button onclick="sendHardwareCommand('w=2', 'Thu tời về gốc CT2')" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 text-xs font-mono font-semibold flex items-center gap-1.5 transition" title="Kéo tời lên vị trí an toàn CT2">
+              <i data-lucide="anchor" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Thu Gốc (CT2)</span>
+            </button>
+            <button onclick="sendHardwareCommand('stopall=1', 'Dừng khẩn cấp toàn bộ')" class="px-2.5 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/30 border border-red-500/50 text-red-300 text-xs font-mono font-bold flex items-center gap-1.5 transition shadow-[0_0_10px_rgba(239,68,68,0.2)]" title="Dừng khẩn cấp động cơ và tời">
+              <i data-lucide="octagon-alert" class="w-3.5 h-3.5 text-red-400"></i>
+              <span>DỪNG KHẨN CẤP</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Visual Cross-Section + 3-Tier Table -->
+        <div class="my-4 grid grid-cols-1 sm:grid-cols-12 gap-4 items-stretch">
+          
+          <!-- Left: Visual Water Column Winch Graphic (3 Cols) -->
+          <div class="sm:col-span-3 rounded-xl bg-gradient-to-b from-cyan-950/60 via-sky-950/80 to-amber-950/70 border border-cyan-500/30 p-3 flex flex-col justify-between relative min-h-[230px]">
+            <div class="text-[10px] font-mono text-cyan-300 flex justify-between border-b border-cyan-500/20 pb-1">
+              <span>MẶT NƯỚC</span>
+              <span>0.0m</span>
+            </div>
+
+            <!-- Winch Cable & Cage Indicator -->
+            <div class="relative flex-1 my-2 border-l-2 border-dashed border-cyan-500/40 ml-3 pl-3 flex flex-col justify-between text-[10px] font-mono">
+              <!-- Dynamic Moving Probe Cage -->
+              <div id="visualProbeCage" class="absolute -left-2.5 top-2 flex items-center gap-1.5 transition-all duration-700">
+                <div class="w-4 h-6 rounded bg-cyan-400 shadow-[0_0_12px_#22d3ee] border border-white flex items-center justify-center">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-950"></span>
+                </div>
+                <span id="visualProbeLabel" class="px-1.5 py-0.5 rounded bg-slate-950/90 border border-cyan-400 text-cyan-300 font-bold whitespace-nowrap">0.30m</span>
+              </div>
+
+              <div class="text-cyan-200/80">Tầng Mặt (0.3m)</div>
+              <div class="text-sky-300/80">Tầng Giữa (1.0m)</div>
+              <div class="text-indigo-300/80">Tầng Đáy (1.8m)</div>
+            </div>
+
+            <!-- Mud Bottom Layer (CT1) -->
+            <div id="mudBottomBox" class="rounded-lg bg-amber-950/80 border border-amber-600/40 p-1.5 text-center">
+              <span class="text-[10px] font-mono font-bold text-amber-400 block">BÙN ĐÁY (&ge;1.95m)</span>
+              <span id="mudAlertSub" class="text-[9px] font-mono text-slate-400">Công tắc CT1: Chờ</span>
+            </div>
+          </div>
+
+          <!-- Right: 3-Layer Comparison Table (9 Cols) -->
+          <div class="sm:col-span-9 overflow-x-auto">
+            <table class="w-full text-left border-collapse font-mono text-xs">
+              <thead>
+                <tr class="border-b border-slate-700 text-[11px] text-slate-400 uppercase">
+                  <th class="py-2.5 px-2">Tầng Độ Sâu</th>
+                  <th class="py-2.5 px-2">pH</th>
+                  <th class="py-2.5 px-2">DO (mg/L)</th>
+                  <th class="py-2.5 px-2">TDS (ppm)</th>
+                  <th class="py-2.5 px-2">Độ đục</th>
+                  <th class="py-2.5 px-2">Nhiệt độ</th>
+                  <th class="py-2.5 px-2 text-right">WQI</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/80">
+                <!-- Surface 0.3m -->
+                <tr id="rowTier1" class="bg-cyan-500/10 transition">
+                  <td class="py-3 px-2 font-semibold text-cyan-300">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                      <span>Tầng Mặt (0.3m)</span>
+                    </div>
+                  </td>
+                  <td id="t1_ph" class="py-3 px-2 text-white">7.32</td>
+                  <td id="t1_do" class="py-3 px-2 text-sky-300">7.80</td>
+                  <td id="t1_tds" class="py-3 px-2 text-slate-200">178</td>
+                  <td id="t1_ntu" class="py-3 px-2 text-slate-200">12.4 NTU</td>
+                  <td id="t1_temp" class="py-3 px-2 text-rose-300">27.8&deg;C</td>
+                  <td class="py-3 px-2 text-right">
+                    <span id="t1_wqi" class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">94</span>
+                  </td>
+                </tr>
+                <!-- Middle 1.0m -->
+                <tr id="rowTier2" class="hover:bg-slate-800/40 transition">
+                  <td class="py-3 px-2 font-semibold text-sky-300">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                      <span>Tầng Giữa (1.0m)</span>
+                    </div>
+                  </td>
+                  <td id="t2_ph" class="py-3 px-2 text-white">7.18</td>
+                  <td id="t2_do" class="py-3 px-2 text-sky-300">7.15</td>
+                  <td id="t2_tds" class="py-3 px-2 text-slate-200">192</td>
+                  <td id="t2_ntu" class="py-3 px-2 text-slate-200">18.7 NTU</td>
+                  <td id="t2_temp" class="py-3 px-2 text-rose-300">26.9&deg;C</td>
+                  <td class="py-3 px-2 text-right">
+                    <span id="t2_wqi" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">88</span>
+                  </td>
+                </tr>
+                <!-- Bottom 1.8m -->
+                <tr id="rowTier3" class="hover:bg-slate-800/40 transition">
+                  <td class="py-3 px-2 font-semibold text-indigo-300">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                      <span>Tầng Đáy (1.8m)</span>
+                    </div>
+                  </td>
+                  <td id="t3_ph" class="py-3 px-2 text-white">6.94</td>
+                  <td id="t3_do" class="py-3 px-2 text-sky-300">6.10</td>
+                  <td id="t3_tds" class="py-3 px-2 text-slate-200">226</td>
+                  <td id="t3_ntu" class="py-3 px-2 text-amber-300">39.5 NTU</td>
+                  <td id="t3_temp" class="py-3 px-2 text-rose-300">26.1&deg;C</td>
+                  <td class="py-3 px-2 text-right">
+                    <span id="t3_wqi" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">79</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Stratification Evaluation Summary -->
+            <div class="mt-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+              <div class="flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+                <span class="text-slate-400">Đánh giá phân tầng (Stratification):</span>
+              </div>
+              <span id="stratificationStatus" class="text-cyan-300 font-semibold">Khuếch tán oxy tốt • Độ đục tăng nhẹ ở tầng sát bùn đáy</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Bar: Winch Motor Telemetry -->
+        <div class="pt-3 border-t border-slate-800 grid grid-cols-3 gap-2 text-xs font-mono">
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Động cơ tời:</span>
+            <span id="winchMotorStatus" class="text-emerald-400 font-semibold">HOLD (0.0A)</span>
+          </div>
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Độ sâu tời:</span>
+            <span id="winchDepthFooter" class="text-cyan-300 font-semibold">0.30 m</span>
+          </div>
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Cảm biến đáy:</span>
+            <span id="ct1FooterStatus" class="text-emerald-400 font-semibold">CT1 = 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. BẢN ĐỒ ĐỊNH VỊ GPS VỆ TINH & KINEMATICS (6 Cols) -->
+      <div id="kinematicsCard" class="glass-card rounded-2xl p-5 lg:col-span-6 flex flex-col justify-between transition-all duration-300">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-mono uppercase tracking-widest text-cyan-400 block">Google Maps Satellite &amp; GNSS Tracking</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+                🛰️ VỆ TINH GOOGLE
+              </span>
+            </div>
+            <h2 class="font-display text-lg font-bold text-white">ĐỊNH VỊ VỆ TINH GOOGLE MAPS &amp; ĐỘNG HỌC</h2>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+            <!-- Satellite Type Switcher Dropdown -->
+            <select id="mapLayerSelect" onchange="changeMapLayer(this.value)" class="bg-slate-900 border border-cyan-500/40 text-cyan-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-400 cursor-pointer">
+              <option value="google_hybrid">🛰️ Google Vệ Tinh (Hybrid)</option>
+              <option value="google_sat">📷 Google Vệ Tinh (Thuần)</option>
+              <option value="google_streets">🗺️ Google Maps (Đường phố)</option>
+              <option value="google_terrain">🏔️ Google Địa Hình (Terrain)</option>
+              <option value="esri_sat">🌐 ESRI World Imagery HD</option>
+            </select>
+
+            <!-- Auto-Follow Toggle -->
+            <button id="btnFollowBuoy" onclick="toggleAutoFollow()" class="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-semibold transition flex items-center gap-1" title="Tự động giữ phao ở tâm màn hình">
+              <i data-lucide="locate-fixed" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <span class="hidden sm:inline">Bám phao: BẬT</span>
+            </button>
+
+            <!-- Set Home Anchor Button -->
+            <button onclick="setHomeToCurrentPosition()" class="px-2 py-1 rounded-lg bg-slate-900 text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1" title="Đặt vị trí hiện tại làm điểm Home neo đậu">
+              <i data-lucide="anchor" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span class="hidden sm:inline">Ghim Home</span>
+            </button>
+
+            <!-- Direct Google Maps App Navigation -->
+            <button onclick="openExternalGoogleMaps()" class="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 transition flex items-center gap-1" title="Mở trên ứng dụng Google Maps để dẫn đường tới phao">
+              <i data-lucide="navigation" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span class="hidden sm:inline">Chỉ đường</span>
+            </button>
+
+            <!-- Fullscreen Map Toggle -->
+            <button onclick="toggleMapFullscreen()" id="btnFullscreenMap" class="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 transition" title="Phóng to toàn màn hình">
+              <i data-lucide="maximize-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Map + Attitude HUD Grid -->
+        <div class="my-4 grid grid-cols-1 sm:grid-cols-12 gap-4 items-stretch">
+          <!-- Leaflet Map Container (8 Cols on Desktop) -->
+          <div id="mapWrapper" class="sm:col-span-8 relative rounded-xl overflow-hidden border border-cyan-500/30 min-h-[320px] transition-all">
+            <div id="usvMap" class="w-full h-full min-h-[320px] z-10"></div>
+            
+            <!-- Floating GPS Coordinates & Geofence Status -->
+            <div class="absolute bottom-2 left-2 z-20 bg-slate-950/90 backdrop-blur-md border border-cyan-500/40 rounded-lg p-2 font-mono text-[11px] text-slate-200 space-y-1 shadow-lg pointer-events-auto">
+              <div class="flex items-center gap-1.5 text-cyan-300 font-bold">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-rose-400"></i>
+                <span id="valLat">21.054820° N</span>, <span id="valLng">105.821450° E</span>
+              </div>
+              <div class="text-[10px] text-slate-400 flex items-center justify-between gap-3">
+                <span>Cách Home: <strong id="valHomeDist" class="text-white">0.0 m</strong></span>
+                <span id="geofencePill" class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold">VÙNG AN TOÀN (200m)</span>
+              </div>
+            </div>
+
+            <!-- Floating Speed, Sats & Heading Overlay -->
+            <div class="absolute top-2 right-2 z-20 bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-emerald-400 font-semibold shadow-lg space-y-0.5">
+              <div class="flex items-center gap-2">
+                <span class="flex items-center gap-1 text-slate-300"><i data-lucide="satellite" class="w-3 h-3 text-cyan-400"></i> <strong id="valSatsBadge" class="text-cyan-300">11</strong> Sats</span>
+                <span>•</span>
+                <span id="valSpeed">3.4</span> km/h
+              </div>
+              <div class="text-[10px] text-slate-400">
+                Mũi: <span id="valHeading" class="text-white font-bold">068°</span> NE
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Compass Heading & Roll/Pitch Anti-Capsize HUD (4 Cols) -->
+          <div class="sm:col-span-4 flex flex-col justify-between bg-slate-900/70 rounded-xl border border-slate-800 p-3">
+            <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span>GÓC NGHIÊNG IMU</span>
+              <span id="imuSafetyBadge" class="text-emerald-400 font-bold">ỔN ĐỊNH</span>
+            </div>
+
+            <!-- Artificial Horizon / Tilt Indicator SVG -->
+            <div class="my-2 flex items-center justify-center">
+              <div class="relative w-32 h-32 rounded-full border-2 border-cyan-500/40 bg-slate-950 overflow-hidden flex items-center justify-center shadow-inner">
+                <!-- Horizon Line that rotates with Roll and shifts with Pitch -->
+                <div id="hudHorizon" class="w-40 h-40 flex flex-col items-center justify-center transition-transform duration-300">
+                  <div class="w-full h-1/2 bg-sky-500/15 border-b-2 border-cyan-400"></div>
+                  <div class="w-full h-1/2 bg-indigo-950/60"></div>
+                </div>
+                <!-- Crosshair Reference -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div class="w-16 h-0.5 bg-amber-400/80"></div>
+                  <div class="w-2.5 h-2.5 rounded-full border-2 border-amber-400 bg-slate-950"></div>
+                </div>
+                <span class="absolute top-1.5 text-[9px] font-mono text-cyan-300">HDG <strong id="hudHeadingText">068°</strong></span>
+              </div>
+            </div>
+
+            <!-- Roll & Pitch Readouts -->
+            <div class="space-y-1.5 font-mono text-xs">
+              <div class="flex justify-between items-center px-2 py-1 rounded bg-slate-950/80 border border-slate-800">
+                <span class="text-slate-400">Roll (Lắc ngang):</span>
+                <span id="valRoll" class="text-cyan-300 font-bold">+2.1°</span>
+              </div>
+              <div class="flex justify-between items-center px-2 py-1 rounded bg-slate-950/80 border border-slate-800">
+                <span class="text-slate-400">Pitch (Chúc mũi):</span>
+                <span id="valPitch" class="text-cyan-300 font-bold">-1.4°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Kinematics Bar -->
+        <div class="pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Hướng mũi:</span>
+            <span id="kinHeading" class="text-white font-semibold">68&deg; (Đông Bắc)</span>
+          </div>
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Vận tốc:</span>
+            <span id="kinSpeed" class="text-emerald-400 font-semibold">3.4 km/h</span>
+          </div>
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Sai số HDOP:</span>
+            <span id="valHdop" class="text-cyan-300 font-semibold">0.85 m</span>
+          </div>
+          <div class="bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Chống lật:</span>
+            <span id="tiltAlarmText" class="text-emerald-400 font-semibold">&lt; &plusmn;15&deg; OK</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- ROW 3: REAL-TIME TELEMETRY CHARTS + 3S BATTERY & 4G VIETTEL MODEM     -->
+    <!-- ===================================================================== -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- Biểu đồ xu hướng thời gian thực (7 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-7 flex flex-col justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+          <div>
+            <span class="text-[11px] font-mono uppercase tracking-widest text-cyan-400 block">Real-Time Time-Series Stream</span>
+            <h2 class="font-display text-lg font-bold text-white">BIỂU ĐỒ DIỄN BIẾN THỦY VĂN (4 GIÂY/MẪU)</h2>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+            <button onclick="switchChartDataset('ph_do')" id="tab_ph_do" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-semibold transition">
+              pH &amp; DO
+            </button>
+            <button onclick="switchChartDataset('tds_ntu')" id="tab_tds_ntu" class="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-700 hover:text-slate-200 transition">
+              TDS &amp; NTU
+            </button>
+            <button onclick="switchChartDataset('power')" id="tab_power" class="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-700 hover:text-slate-200 transition">
+              Pin 3S &amp; Công Suất
+            </button>
+            <button onclick="switchChartDataset('radar')" id="tab_radar" class="px-2.5 py-1 rounded-lg bg-indigo-950/60 text-indigo-300 border border-indigo-500/40 hover:text-indigo-200 transition" title="Biểu đồ Nhện đánh giá 5 thông số theo QCVN 08:2023">
+              🕸️ Radar QCVN
+            </button>
+            <button onclick="exportTelemetryCsv()" class="px-2.5 py-1 rounded-lg bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 hover:text-emerald-200 transition flex items-center gap-1" title="Tải xuống File Excel/CSV Toàn Bộ Mẫu Dữ Liệu">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Xuất CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="my-3 relative h-64 w-full">
+          <canvas id="telemetryChart"></canvas>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+          <span>Tần suất lấy mẫu: <strong class="text-cyan-300">0.25 Hz (4000 ms)</strong></span>
+          <span>Bộ nhớ đệm: <strong id="chartSampleCount" class="text-slate-200">20 mẫu gần nhất</strong></span>
+        </div>
+      </div>
+
+      <!-- 5. NĂNG LƯỢNG PIN 3S & TRẠNG THÁI 4G LTE VIETTEL (5 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-5 flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div>
+            <span class="text-[11px] font-mono uppercase tracking-widest text-cyan-400 block">Power BMS &amp; Cellular Link</span>
+            <h2 class="font-display text-lg font-bold text-white">NĂNG LƯỢNG PIN 3S &amp; MODEM 4G LTE</h2>
+          </div>
+          <span id="bmsStatusBadge" class="px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            3S Li-Ion OK
+          </span>
+        </div>
+
+        <!-- 3S Battery Pack Section -->
+        <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-400"></i>
+              <span class="font-mono text-xs uppercase text-slate-300 font-semibold">Tổ Pin Lithium 3S (9.6V - 12.6V)</span>
+            </div>
+            <span id="valBattPct" class="font-mono text-lg font-bold text-emerald-400">86%</span>
+          </div>
+
+          <!-- Battery Progress Bar -->
+          <div class="w-full h-3 rounded-full bg-slate-950 p-0.5 border border-slate-700">
+            <div id="battBar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500" style="width: 86%"></div>
+          </div>
+
+          <!-- Voltage, Current, Power Metrics -->
+          <div class="grid grid-cols-3 gap-2 pt-1 font-mono">
+            <div class="p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 text-center">
+              <span class="text-[10px] text-slate-400 block">ĐIỆN ÁP (U)</span>
+              <span id="valBattV" class="text-base font-bold text-white">12.14 V</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 text-center">
+              <span class="text-[10px] text-slate-400 block">DÒNG TẢI (I)</span>
+              <span id="valLoadA" class="text-base font-bold text-cyan-300">1.85 A</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 text-center">
+              <span class="text-[10px] text-slate-400 block">CÔNG SUẤT (P)</span>
+              <span id="valPowerW" class="text-base font-bold text-amber-400">22.46 W</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4G LTE Viettel Modem Section -->
+        <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="radio-tower" class="w-5 h-5 text-cyan-400"></i>
+              <div>
+                <span class="font-mono text-xs uppercase text-white font-bold block">SIM 4G LTE VIETTEL TELECOM</span>
+                <span class="font-mono text-[10px] text-slate-400">Modem: SIM7600CE / LTE Cat-4</span>
+              </div>
+            </div>
+            <span id="valSimState" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              CONNECTED
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 font-mono text-xs pt-1">
+            <div class="px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 flex justify-between items-center">
+              <span class="text-slate-400">Chỉ số CSQ:</span>
+              <span id="valCsq" class="text-emerald-400 font-bold">24 / 31</span>
+            </div>
+            <div class="px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 flex justify-between items-center">
+              <span class="text-slate-400">Cường độ sóng:</span>
+              <span id="valRssi" class="text-emerald-400 font-bold">-65 dBm</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
+            <span>Gói tin thành công: <strong id="valPackets" class="text-slate-200">1,428</strong></span>
+            <span>Độ trễ API: <strong id="valLatency" class="text-cyan-300">42 ms</strong></span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- ROW 4: COMPLETE 30-PARAMETER MATRIX INSPECTOR                         -->
+    <!-- ===================================================================== -->
+    <section class="glass-card rounded-2xl p-5">
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <i data-lucide="cpu" class="w-5 h-5 text-cyan-400"></i>
+          <div>
+            <h2 class="font-display text-base font-bold text-white uppercase">MA TRẬN ĐẦY ĐỦ 30 THÔNG SỐ KỸ THUẬT THỜI GIAN THỰC (TELEMETRY MATRIX)</h2>
+            <p class="text-xs text-slate-400 font-mono">Đồng bộ trực tiếp từ gói JSON trả về qua giao thức HTTP GET ?mode=status (Chu kỳ 4 giây)</p>
+          </div>
+        </div>
+        <button onclick="exportTelemetryCsv()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 text-xs font-mono flex items-center gap-1.5 transition">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Xuất Log CSV</span>
+        </button>
+      </div>
+
+      <div id="paramMatrixGrid" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2.5 font-mono text-xs">
+        <!-- Populated dynamically by JS with all 30 parameters -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL CẤU HÌNH ENDPOINT GOOGLE APPS SCRIPT / REST API                   -->
+  <!-- ======================================================================= -->
+  <div id="configModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl max-w-lg w-full p-6 border border-cyan-400/50 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="webhook" class="w-5 h-5 text-cyan-400"></i>
+          <h3 class="font-display text-lg font-bold text-white">CẤU HÌNH NGUỒN DỮ LIỆU API (4s POLLING)</h3>
+        </div>
+        <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-mono text-slate-300 mb-1">Chế độ hoạt động:</label>
+          <select id="inputModeSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-400">
+            <option value="sim">Digital Twin Simulation (Giả lập vật lý tự động)</option>
+            <option value="api">Live Fetch API (Google Apps Script / REST Endpoint)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-mono text-slate-300 mb-1">URL Endpoint (Tự động gắn <code class="text-cyan-400">?mode=status</code>):</label>
+          <input id="inputApiUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec"
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-cyan-300 font-mono focus:outline-none focus:border-cyan-400" />
+          <p class="text-[11px] text-slate-400 mt-1">
+            Nếu API trả lỗi CORS hoặc ngoại tuyến, hệ thống tự động duy trì hiển thị bằng bộ dữ liệu dự phòng an toàn.
+          </p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 font-mono text-[11px] text-slate-300 space-y-1">
+          <div class="text-cyan-400 font-semibold">Cấu trúc JSON chuẩn hỗ trợ từ Endpoint:</div>
+          <pre class="overflow-x-auto text-[10px] text-slate-400">{ "wqi": 92, "ph": 7.25, "do": 7.6, "tds": 185, "ec": 370, "ntu": 14.2, "temp": 27.4, "depth": 0.3, "ct1": 0, "lat": 21.0548, "lng": 105.8214, "heading": 68, "speed": 3.4, "sats": 11, "roll": 2.1, "pitch": -1.4, "batt_v": 12.1, "load_a": 1.85, "csq": 24 }</pre>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800 font-mono text-xs">
+        <button onclick="toggleConfigModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">Đóng</button>
+        <button onclick="saveApiConfig()" class="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400">Lưu &amp; Kết Nối</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- JAVASCRIPT ENGINE: POLLING, HENRY'S LAW, WQI, MAP & CHARTS              -->
+  <!-- ======================================================================= -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // -------------------------------------------------------------------------
+    // 1. STATE & CONFIGURATION
+    // -------------------------------------------------------------------------
+    let APP_CONFIG = {
+      mode: localStorage.getItem('usv_mode') || 'api', // 'sim' or 'api'
+      apiUrl: localStorage.getItem('usv_api_url') || 'https://script.google.com/macros/s/AKfycbzcdsFjdE1jkOlEQcafJ4BhnYB4wLumgYNlLkmcj7EeUUatMWIqFr6OJZfGpW2uuB1hZg/exec',
+      pollIntervalMs: 4000
+    };
+
+    let activeScenario = 'normal'; // 'normal' | 'polluted' | 'mud_hit' | 'storm_tilt'
+    let packetCounter = 1428;
+    let pollTimerCountdown = 4.0;
+    let currentChartMode = 'ph_do';
+
+    // Current 30-Parameter Telemetry State
+    let telemetry = {
+      wqi: 89,
+      wqi_grade: 'A2',
+      ph: 5.82,
+      ph_mv: 69.8,
+      do_mgl: 6.67,
+      do_sat: 88.5,
+      do_theo: 7.54,
+      tds: 0,
+      ec: 0,
+      salinity: 0.0,
+      ntu: 4.0,
+      tss: 5.2,
+      water_temp: 30.5,
+      temp_delta: 0.0,
+      winch_depth: 0.00,
+      winch_state: 'TẦNG MẶT',
+      winch_motor_a: 0.0,
+      ct1_bottom: 0,
+      ct2_home: 1,
+      tier1_wqi: 89,
+      tier2_wqi: 0,
+      tier3_wqi: 0,
+      lat: 21.054820,
+      lng: 105.821450,
+      heading: 337,
+      speed: 0.0,
+      gps_sats: 0,
+      hdop: 1.0,
+      roll: -4.3,
+      pitch: 2.4,
+      batt_v: 0.0,
+      batt_pct: 0,
+      load_a: 0.0,
+      power_w: 0.0,
+      csq: 24,
+      rssi_dbm: -65,
+      net_status: '4G LTE VIETTEL',
+      latency_ms: 42
+    };
+
+    // Layer data for 3-tier profiler
+    let tiers = {
+      t1: { ph: 7.32, do: 7.80, tds: 178, ntu: 12.4, temp: 27.8, wqi: 94 },
+      t2: { ph: 7.18, do: 7.15, tds: 192, ntu: 18.7, temp: 26.9, wqi: 88 },
+      t3: { ph: 6.94, do: 6.10, tds: 226, ntu: 39.5, temp: 26.1, wqi: 79 }
+    };
+
+    // Historical buffers for Chart.js & CSV Export
+    const MAX_HISTORY = 20;
+    let historyLog = [];
+
+    // -------------------------------------------------------------------------
+    // 2. HYDROLOGICAL LAWS & VN-WQI CALCULATOR (QCVN 08:2023/BTNMT)
+    // -------------------------------------------------------------------------
+    // Henry's Law empirical formula for freshwater DO saturation (mg/L) at 1 atm
+    function calcHenryDoSaturation(tempC) {
+      const T = tempC;
+      return +(14.652 - 0.41022 * T + 0.007991 * (T * T) - 0.000077774 * (T * T * T)).toFixed(2);
+    }
+
+    // Compute VN-WQI score (0-100) from pH, DO, TDS, NTU, Temp
+    function computeVnWqi(ph, doMgl, doSatPct, tds, ntu) {
+      // Sub-index pH (Ideal 6.5 - 8.5)
+      let qPh = 100;
+      if (ph < 6.5) qPh = Math.max(10, 100 - (6.5 - ph) * 45);
+      else if (ph > 8.5) qPh = Math.max(10, 100 - (ph - 8.5) * 45);
+      else qPh = 100 - Math.abs(7.2 - ph) * 8;
+
+      // Sub-index DO
+      let qDo = Math.min(100, Math.max(10, (doMgl / 7.8) * 100));
+
+      // Sub-index Turbidity NTU (Ideal < 5 NTU, bad > 100 NTU)
+      let qNtu = 100;
+      if (ntu > 5) qNtu = Math.max(10, 100 - (ntu - 5) * 0.75);
+
+      // Sub-index TDS (Ideal < 300 ppm)
+      let qTds = 100;
+      if (tds > 250) qTds = Math.max(20, 100 - (tds - 250) * 0.12);
+
+      const weighted = (qPh * 0.25) + (qDo * 0.35) + (qNtu * 0.25) + (qTds * 0.15);
+      return Math.round(Math.min(100, Math.max(5, weighted)));
+    }
+
+    // Classify WQI according to prompt's QCVN 08:2023/BTNMT rules
+    function getWqiClassification(score) {
+      if (score > 90) {
+        return {
+          grade: 'A1',
+          label: 'RẤT TỐT',
+          color: '#06b6d4', // Xanh ngọc
+          badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50',
+          advice: 'Tốt - Dùng cho cấp nước sinh hoạt'
+        };
+      } else if (score >= 76) {
+        return {
+          grade: 'A2',
+          label: 'NƯỚC KHÁ',
+          color: '#22c55e', // Xanh lục
+          badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50',
+          advice: 'Cấp nước sinh hoạt (cần xử lý) & Bảo tồn thủy sinh'
+        };
+      } else if (score >= 51) {
+        return {
+          grade: 'B1',
+          label: 'TRUNG BÌNH',
+          color: '#eab308', // Vàng
+          badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-400/50',
+          advice: 'Dùng cho tưới tiêu thủy lợi & công nghiệp'
+        };
+      } else if (score >= 26) {
+        return {
+          grade: 'B2',
+          label: 'NƯỚC KÉM',
+          color: '#f97316', // Cam
+          badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-400/50',
+          advice: 'Giao thông thủy & mục đích chất lượng thấp'
+        };
+      } else {
+        return {
+          grade: 'C',
+          label: 'Ô NHIỄM NẶNG',
+          color: '#ef4444', // Đỏ
+          badgeClass: 'bg-red-500/25 text-red-300 border-red-500/60',
+          advice: 'CẢNH BÁO: Nước ô nhiễm nặng, cần xử lý khắc phục!'
+        };
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. GOOGLE MAPS SATELLITE ENGINE & GPS TRACKING
+    let map, buoyMarker, trajectoryLine, homeMarker, homeDistanceLine, geofenceCircle;
+    let autoFollowBuoy = true;
+    let isMapFullscreen = false;
+    let mapLayers = {};
+    let currentMapLayerKey = 'google_hybrid';
+
+    // Home Anchor Location (Default: starting point)
+    let homeLocation = { lat: 21.054820, lng: 105.821450 };
+    const GEOFENCE_RADIUS_METERS = 200; // 200m safe circle
+
+    let gpsPathCoords = [
+      [21.054210, 105.820510],
+      [21.054430, 105.820850],
+      [21.054610, 105.821120],
+      [21.054820, 105.821450]
+    ];
+
+    function initMap() {
+      map = L.map('usvMap', {
+        center: [telemetry.lat, telemetry.lng],
+        zoom: 17,
+        zoomControl: true,
+        attributionControl: false
+      });
+
+      // 1. Google Maps Satellite Hybrid (Satellite + Roads + Labels)
+      mapLayers['google_hybrid'] = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+
+      // 2. Google Maps Pure Satellite
+      mapLayers['google_sat'] = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+
+      // 3. Google Maps Standard Roadmap
+      mapLayers['google_streets'] = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+
+      // 4. Google Maps Terrain
+      mapLayers['google_terrain'] = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+
+      // 5. ESRI World Imagery HD
+      mapLayers['esri_sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
+      });
+
+      // Add default Google Hybrid layer
+      mapLayers['google_hybrid'].addTo(map);
+
+      // Trajectory Polyline (Cyan Neon with glow)
+      trajectoryLine = L.polyline(gpsPathCoords, {
+        color: '#22d3ee',
+        weight: 3.5,
+        opacity: 0.9,
+        dashArray: '6, 6'
+      }).addTo(map);
+
+      // Geofence Circle (Safe zone around Home)
+      geofenceCircle = L.circle([homeLocation.lat, homeLocation.lng], {
+        radius: GEOFENCE_RADIUS_METERS,
+        color: '#06b6d4',
+        fillColor: '#06b6d4',
+        fillOpacity: 0.08,
+        weight: 1.5,
+        dashArray: '4, 4'
+      }).addTo(map);
+
+      // Home Anchor Marker
+      const homeIcon = L.divIcon({
+        className: 'home-anchor-marker',
+        html: `
+          <div class="relative flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/20 border-2 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      homeMarker = L.marker([homeLocation.lat, homeLocation.lng], { icon: homeIcon }).addTo(map).bindPopup('<b>Trạm Bờ / Vị Trí Home Neo Đậu</b>');
+
+      // Distance Line from Home to Buoy
+      homeDistanceLine = L.polyline([[homeLocation.lat, homeLocation.lng], [telemetry.lat, telemetry.lng]], {
+        color: '#f59e0b',
+        weight: 2,
+        opacity: 0.75,
+        dashArray: '4, 4'
+      }).addTo(map);
+
+      // Custom Rotatable USV Buoy Marker
+      const buoyIcon = createBuoyIcon(telemetry.heading);
+      buoyMarker = L.marker([telemetry.lat, telemetry.lng], { icon: buoyIcon }).addTo(map);
+      buoyMarker.bindPopup(`
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#0b0f19;">
+          <b style="color:#0891b2;">Phao USV-01 (Aqua-Sentinel)</b><br/>
+          Tọa độ: ${telemetry.lat.toFixed(6)}, ${telemetry.lng.toFixed(6)}<br/>
+          Tốc độ: ${telemetry.speed} km/h • Hướng: ${telemetry.heading}°<br/>
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${telemetry.lat},${telemetry.lng}" target="_blank" style="color:#2563eb; font-weight:bold; text-decoration:underline; display:inline-block; margin-top:4px;">🧭 Dẫn đường qua Google Maps</a>
+        </div>
+      `);
+    }
+
+    function createBuoyIcon(headingDeg) {
+      return L.divIcon({
+        className: 'usv-marker-wrap',
+        html: `
+          <div class="usv-pulse-ring"></div>
+          <div style="transform: rotate(${headingDeg}deg); transition: transform 0.5s ease;" class="relative z-10 w-10 h-10 flex items-center justify-center">
+            <svg viewBox="0 0 40 40" class="w-9 h-9 drop-shadow-[0_0_10px_#22d3ee]">
+              <polygon points="20,2 34,36 20,28 6,36" fill="#06b6d4" stroke="#ffffff" stroke-width="2.2"/>
+              <circle cx="20" cy="22" r="4" fill="#fbbf24" stroke="#ffffff" stroke-width="1.2"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+    }
+
+    function changeMapLayer(layerKey) {
+      if (!map || !mapLayers[layerKey]) return;
+      Object.keys(mapLayers).forEach(k => {
+        if (map.hasLayer(mapLayers[k])) map.removeLayer(mapLayers[k]);
+      });
+      mapLayers[layerKey].addTo(map);
+      currentMapLayerKey = layerKey;
+    }
+
+    function toggleAutoFollow() {
+      autoFollowBuoy = !autoFollowBuoy;
+      const btn = document.getElementById('btnFollowBuoy');
+      if (btn) {
+        if (autoFollowBuoy) {
+          btn.className = 'px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-semibold transition flex items-center gap-1';
+          btn.innerHTML = '<i data-lucide="locate-fixed" class="w-3.5 h-3.5 text-cyan-400"></i><span class="hidden sm:inline">Bám phao: BẬT</span>';
+          centerMapOnBuoy();
+        } else {
+          btn.className = 'px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-700 font-semibold transition flex items-center gap-1';
+          btn.innerHTML = '<i data-lucide="locate" class="w-3.5 h-3.5 text-slate-400"></i><span class="hidden sm:inline">Bám phao: TẮT</span>';
+        }
+        lucide.createIcons();
+      }
+    }
+
+    function centerMapOnBuoy() {
+      if (map) map.panTo([telemetry.lat, telemetry.lng], { animate: true, duration: 0.6 });
+    }
+
+    function setHomeToCurrentPosition() {
+      homeLocation = { lat: telemetry.lat, lng: telemetry.lng };
+      if (homeMarker) homeMarker.setLatLng([homeLocation.lat, homeLocation.lng]);
+      if (geofenceCircle) geofenceCircle.setLatLng([homeLocation.lat, homeLocation.lng]);
+      if (homeDistanceLine) homeDistanceLine.setLatLngs([[homeLocation.lat, homeLocation.lng], [telemetry.lat, telemetry.lng]]);
+      alert(`Đã lưu tọa độ Home trạm bờ tại: ${homeLocation.lat.toFixed(6)}, ${homeLocation.lng.toFixed(6)}`);
+    }
+
+    function openExternalGoogleMaps() {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${telemetry.lat},${telemetry.lng}`;
+      window.open(url, '_blank');
+    }
+
+    function toggleMapFullscreen() {
+      isMapFullscreen = !isMapFullscreen;
+      const card = document.getElementById('kinematicsCard');
+      const wrapper = document.getElementById('mapWrapper');
+      const mapEl = document.getElementById('usvMap');
+      const btn = document.getElementById('btnFullscreenMap');
+
+      if (isMapFullscreen) {
+        card.classList.add('fixed', 'inset-0', 'z-50', 'p-4', 'bg-[#0b0f19]');
+        wrapper.classList.remove('sm:col-span-8');
+        wrapper.classList.add('sm:col-span-12', 'h-[85vh]');
+        mapEl.style.minHeight = '80vh';
+        btn.innerHTML = '<i data-lucide="minimize-2" class="w-4 h-4 text-cyan-400"></i>';
+      } else {
+        card.classList.remove('fixed', 'inset-0', 'z-50', 'p-4', 'bg-[#0b0f19]');
+        wrapper.classList.remove('sm:col-span-12', 'h-[85vh]');
+        wrapper.classList.add('sm:col-span-8');
+        mapEl.style.minHeight = '320px';
+        btn.innerHTML = '<i data-lucide="maximize-2" class="w-4 h-4 text-cyan-300"></i>';
+      }
+      lucide.createIcons();
+      setTimeout(() => { if (map) map.invalidateSize(); }, 350);
+    }
+
+    // Great circle distance in meters
+    function calcDistanceMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // Earth radius in meters
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return Math.round(R * c);
+    }
+
+    // Voice Alert Engine with 10s cooldown
+    let lastSpeakTime = 0;
+    function speakAlert(text) {
+      if (typeof soundEnabled !== 'undefined' && !soundEnabled) return;
+      const now = Date.now();
+      if (now - lastSpeakTime < 10000) return;
+      lastSpeakTime = now;
+      if ('speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'vi-VN';
+          u.rate = 1.0;
+          u.pitch = 1.0;
+          window.speechSynthesis.speak(u);
+        } catch (e) {}
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. CHART.JS REAL-TIME TIME SERIES
+    // -------------------------------------------------------------------------
+    let telemetryChart;
+
+    function initChart() {
+      const ctx = document.getElementById('telemetryChart').getContext('2d');
+      telemetryChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'pH',
+              data: [],
+              borderColor: '#22d3ee',
+              backgroundColor: 'rgba(34, 211, 238, 0.12)',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: true,
+              yAxisID: 'y'
+            },
+            {
+              label: 'DO (mg/L)',
+              data: [],
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52, 211, 153, 0.08)',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: true,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 11 } }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: 'rgba(51, 65, 85, 0.25)' }
+            },
+            y: {
+              type: 'linear',
+              position: 'left',
+              ticks: { color: '#22d3ee', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: 'rgba(51, 65, 85, 0.25)' }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              ticks: { color: '#34d399', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+    }
+
+    function switchChartDataset(mode) {
+      currentChartMode = mode;
+      ['ph_do', 'tds_ntu', 'power', 'radar'].forEach(id => {
+        const btn = document.getElementById('tab_' + id);
+        if (id === mode) {
+          btn.className = 'px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-semibold transition';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-700 hover:text-slate-200 transition';
+        }
+      });
+      refreshChartFromHistory();
+    }
+
+    function refreshChartFromHistory() {
+      if (!telemetryChart) return;
+      telemetryChart.data.labels = historyLog.map(h => h.time);
+      if (currentChartMode === 'ph_do') {
+        telemetryChart.data.datasets[0].label = 'Độ pH';
+        telemetryChart.data.datasets[0].data = historyLog.map(h => h.ph);
+        telemetryChart.data.datasets[1].label = 'Oxy Hòa Tan DO (mg/L)';
+        telemetryChart.data.datasets[1].data = historyLog.map(h => h.do_mgl);
+      } else if (currentChartMode === 'tds_ntu') {
+        telemetryChart.data.datasets[0].label = 'Khoáng TDS (ppm)';
+        telemetryChart.data.datasets[0].data = historyLog.map(h => h.tds);
+        telemetryChart.data.datasets[1].label = 'Độ đục (NTU)';
+        telemetryChart.data.datasets[1].data = historyLog.map(h => h.ntu);
+      } else {
+        telemetryChart.data.datasets[0].label = 'Điện áp Pin 3S (V)';
+        telemetryChart.data.datasets[0].data = historyLog.map(h => h.batt_v);
+        telemetryChart.data.datasets[1].label = 'Công suất (W)';
+        telemetryChart.data.datasets[1].data = historyLog.map(h => h.power_w);
+            } else if (currentChartMode === 'radar') {
+        telemetryChart.data.datasets[0].label = 'Chỉ số WQI Nguồn Nước (0-100)';
+        telemetryChart.data.datasets[0].data = historyLog.map(h => h.wqi || 85);
+        telemetryChart.data.datasets[1].label = 'Độ Đục NTU (Chuẩn QCVN < 50)';
+        telemetryChart.data.datasets[1].data = historyLog.map(h => h.ntu);
+      }
+      }
+      telemetryChart.update('none');
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. POLLING ENGINE (EVERY 4 SECONDS ?mode=status) & SIMULATION GENERATOR
+    // -------------------------------------------------------------------------
+    
+    // -------------------------------------------------------------------------
+    
+    // Web Audio API Synthesizer for Alarms
+    let audioCtx = null;
+    let soundEnabled = true;
+    let alarmBeepActive = false;
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('soundBtn');
+      if (btn) {
+        btn.innerHTML = soundEnabled ? '<i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>' : '<i data-lucide="volume-x" class="w-4 h-4 text-slate-500"></i>';
+        lucide.createIcons();
+      }
+    }
+
+    function playAlarmChime(freq = 880, duration = 0.25) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    // 5. SMART MULTI-SOURCE POLLING (AUTO-FAILOVER: LOCAL LORA <-> 4G CLOUD <-> SIM)
+    // -------------------------------------------------------------------------
+    async function pollTelemetryData() {
+      const spinIcon = document.getElementById('pollSpinner');
+      if (spinIcon) spinIcon.classList.add('animate-spin');
+      const startTime = performance.now();
+
+      const GCS_LOCAL_URL = '/api/telemetry';
+      const GSHEETS_CLOUD_URL = APP_CONFIG.apiUrl || 'https://script.google.com/macros/s/AKfycbzcdsFjdE1jkOlEQcafJ4BhnYB4wLumgYNlLkmcj7EeUUatMWIqFr6OJZfGpW2uuB1hZg/exec';
+
+      let success = false;
+
+      // Mode: AUTO or LOCAL
+      if (APP_CONFIG.mode === 'auto' || APP_CONFIG.mode === 'local') {
+        try {
+          const ctrl = new AbortController();
+          const tId = setTimeout(() => ctrl.abort(), 1200);
+          const res = await fetch(GCS_LOCAL_URL, { signal: ctrl.signal, cache: 'no-store' });
+          clearTimeout(tId);
+          if (res.ok) {
+            const json = await res.json();
+            telemetry.latency_ms = Math.round(performance.now() - startTime);
+            mergeIncomingApiJson(json);
+            setConnectionBadge('📡 LORA TRẠM BỜ (LOCAL)', true);
+            success = true;
+          }
+        } catch (err) {
+          // If local failed and mode is auto, fall through to cloud
+        }
+      }
+
+      // Mode: AUTO (fallback) or CLOUD
+      if (!success && (APP_CONFIG.mode === 'auto' || APP_CONFIG.mode === 'api' || APP_CONFIG.mode === 'cloud')) {
+        try {
+          const sep = GSHEETS_CLOUD_URL.includes('?') ? '&' : '?';
+          const targetUrl = `${GSHEETS_CLOUD_URL}${sep}mode=status&_t=${Date.now()}`;
+          const ctrl = new AbortController();
+          const tId = setTimeout(() => ctrl.abort(), 7500);
+          const res = await fetch(targetUrl, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
+          clearTimeout(tId);
+          if (res.ok) {
+            const json = await res.json();
+            telemetry.latency_ms = Math.round(performance.now() - startTime);
+            mergeIncomingApiJson(json);
+            setConnectionBadge('🛰️ 4G VIETTEL CLOUD', true);
+            success = true;
+          }
+        } catch (err) {
+          console.warn('Cloud poll error:', err.message);
+        }
+      }
+
+      // Mode: SIM or complete fallback
+      if (!success) {
+        if (APP_CONFIG.mode === 'sim') {
+          generateSimulatedTelemetry();
+          telemetry.latency_ms = Math.floor(28 + Math.random() * 15);
+          setConnectionBadge('🧪 DIGITAL TWIN (GIẢ LẬP)', false);
+        } else {
+          setConnectionBadge('🛰️ 4G VIETTEL LIVE (ĐANG KẾT NỐI)', true);
+        }
+      }
+
+      packetCounter++;
+      recordHistorySample();
+      updateDashboardDOM();
+
+      // Sound Alarm trigger if critical
+      const isCritical = (telemetry.ct1_bottom === 1) || (Math.abs(telemetry.roll) > 15) || (Math.abs(telemetry.pitch) > 15) || (telemetry.ph < 6.0 || telemetry.ph > 8.8) || (telemetry.do_mgl < 3.5);
+      if (isCritical) {
+        playAlarmChime(telemetry.ct1_bottom ? 1200 : 700, 0.3);
+        if (telemetry.ct1_bottom === 1) speakAlert('Cảnh báo! Cảm biến chạm bùn đáy CT1! Dừng tời khẩn cấp.');
+        else if (telemetry.ph < 6.0 || telemetry.ph > 8.8) speakAlert('Cảnh báo! Độ pH nguồn nước vượt ngưỡng quy chuẩn an toàn.');
+        else if (telemetry.do_mgl < 3.5) speakAlert('Cảnh báo! Hàm lượng oxy hòa tan xuống thấp nguy hiểm.');
+      }
+
+      setTimeout(() => { if (spinIcon) spinIcon.classList.remove('animate-spin'); }, 400);
+    }
+
+
+    function mergeIncomingApiJson(data) {
+      if (!data) return;
+
+      // Case 1: Google Apps Script statusOut_
+      if (data.sheets && data.sheets.Telemetry_Realtime && Array.isArray(data.sheets.Telemetry_Realtime.last)) {
+        const row = data.sheets.Telemetry_Realtime.last;
+        if (row.length >= 18) {
+          if (row[2] !== undefined && row[2] !== "") telemetry.ph = +Number(row[2]).toFixed(2);
+          if (row[3] !== undefined && row[3] !== "") telemetry.do_mgl = +Number(row[3]).toFixed(2);
+          if (row[4] !== undefined && row[4] !== "") telemetry.tds = Math.round(Number(row[4]));
+          if (row[5] !== undefined && row[5] !== "") telemetry.ec = Math.round(Number(row[5]));
+          if (row[6] !== undefined && row[6] !== "") telemetry.ntu = +Number(row[6]).toFixed(1);
+          if (row[7] !== undefined && row[7] !== "") telemetry.water_temp = +Number(row[7]).toFixed(1);
+          if (row[8] !== undefined && row[8] !== "") telemetry.winch_depth = +Number(row[8]).toFixed(2);
+          if (row[9] !== undefined && row[9] !== "") telemetry.power_w = +Number(row[9]).toFixed(2);
+          if (row[10] !== undefined && row[10] !== "") telemetry.load_a = +Number(row[10]).toFixed(2);
+          if (row[11] !== undefined && row[11] !== "") telemetry.batt_v = +Number(row[11]).toFixed(2);
+          if (row[12] !== undefined && row[12] !== "") telemetry.roll = +Number(row[12]).toFixed(1);
+          if (row[13] !== undefined && row[13] !== "") telemetry.pitch = +Number(row[13]).toFixed(1);
+          if (row[14] !== undefined && row[14] !== "") telemetry.heading = Math.round(Number(row[14])) % 360;
+          if (row[1] !== undefined && row[1] !== "") packetCounter = Number(row[1]);
+          if (row[15] !== undefined && row[15] !== "" && Number(row[15]) !== 0) telemetry.lat = +Number(row[15]).toFixed(6);
+          if (row[16] !== undefined && row[16] !== "" && Number(row[16]) !== 0) telemetry.lng = +Number(row[16]).toFixed(6);
+          if (row[17] !== undefined && row[17] !== "") telemetry.gps_sats = Number(row[17]);
+          if (row[18] !== undefined && row[18] !== "") telemetry.speed = +Number(row[18]).toFixed(1);
+          if (row[23] !== undefined && row[23] !== "") telemetry.csq = Math.min(31, Math.max(0, Math.round(Number(row[23]))));
+          if (row[25] !== undefined && row[25] !== "") recalculateDerivedHydrology(Number(row[25]));
+          else recalculateDerivedHydrology();
+          return;
+        }
+      }
+
+      // Case 2: Local GCS Web Server (/api/telemetry) or Standard JSON
+      const d = data.data || data;
+      if (d.ph !== undefined) telemetry.ph = +Number(d.ph).toFixed(2);
+      if (d.do !== undefined || d.do_mgl !== undefined) telemetry.do_mgl = +Number(d.do ?? d.do_mgl).toFixed(2);
+      if (d.tds !== undefined) telemetry.tds = Math.round(Number(d.tds));
+      if (d.ec !== undefined) telemetry.ec = Math.round(Number(d.ec));
+      else telemetry.ec = telemetry.tds * 2;
+      if (d.ntu !== undefined) telemetry.ntu = +Number(d.ntu).toFixed(1);
+      if (d.temp !== undefined || d.water_temp !== undefined) telemetry.water_temp = +Number(d.temp ?? d.water_temp).toFixed(1);
+      if (d.depth !== undefined || d.winch_depth !== undefined || d.dep !== undefined) telemetry.winch_depth = +Number(d.depth ?? d.winch_depth ?? d.dep).toFixed(2);
+      if (d.ct1 !== undefined || d.ct1_bottom !== undefined) telemetry.ct1_bottom = Number(d.ct1 ?? d.ct1_bottom) ? 1 : 0;
+      if (d.ct2 !== undefined || d.ct2_home !== undefined) telemetry.ct2_home = Number(d.ct2 ?? d.ct2_home) ? 1 : 0;
+      if (d.lat !== undefined && Number(d.lat) !== 0) telemetry.lat = +Number(d.lat).toFixed(6);
+      if (d.lng !== undefined && Number(d.lng) !== 0) telemetry.lng = +Number(d.lng).toFixed(6);
+      if (d.heading !== undefined || d.hdg !== undefined) telemetry.heading = Math.round(Number(d.heading ?? d.hdg)) % 360;
+      if (d.speed !== undefined || d.spd !== undefined) telemetry.speed = +Number(d.speed ?? d.spd).toFixed(1);
+      if (d.sats !== undefined || d.gps_sats !== undefined) telemetry.gps_sats = Number(d.sats ?? d.gps_sats);
+      if (d.roll !== undefined) telemetry.roll = +Number(d.roll).toFixed(1);
+      if (d.pitch !== undefined) telemetry.pitch = +Number(d.pitch).toFixed(1);
+      if (d.batt_v !== undefined || d.bat !== undefined) telemetry.batt_v = +Number(d.batt_v ?? d.bat).toFixed(2);
+      if (d.load_a !== undefined || d.amp !== undefined) telemetry.load_a = +Number(d.load_a ?? d.amp).toFixed(2);
+      if (d.power_w !== undefined || d.watt !== undefined) telemetry.power_w = +Number(d.power_w ?? d.watt).toFixed(2);
+      if (d.csq !== undefined || d.rssi !== undefined) telemetry.csq = Math.min(31, Math.max(0, Number(d.csq ?? (d.rssi ? Math.round((d.rssi + 113) / 2) : 24))));
+
+      recalculateDerivedHydrology(d.wqi);
+    }
+
+    function generateSimulatedTelemetry() {
+      const jitter = (range) => (Math.random() - 0.5) * range;
+
+      if (activeScenario === 'normal') {
+        telemetry.ph = +(7.28 + jitter(0.12)).toFixed(2);
+        telemetry.do_mgl = +(7.65 + jitter(0.25)).toFixed(2);
+        telemetry.tds = Math.round(184 + jitter(10));
+        telemetry.ntu = +(14.2 + jitter(2.5)).toFixed(1);
+        telemetry.water_temp = +(27.4 + jitter(0.3)).toFixed(1);
+        telemetry.ct1_bottom = 0;
+        telemetry.roll = +(2.1 + jitter(1.4)).toFixed(1);
+        telemetry.pitch = +(-1.4 + jitter(1.2)).toFixed(1);
+      } else if (activeScenario === 'polluted') {
+        telemetry.ph = +(5.45 + jitter(0.2)).toFixed(2); // Acidic alert!
+        telemetry.do_mgl = +(2.15 + jitter(0.3)).toFixed(2); // Hypoxia
+        telemetry.tds = Math.round(890 + jitter(35));
+        telemetry.ntu = +(420.5 + jitter(40)).toFixed(1); // High turbidity
+        telemetry.water_temp = +(30.8 + jitter(0.4)).toFixed(1);
+        telemetry.ct1_bottom = 0;
+        telemetry.roll = +(3.0 + jitter(1.5)).toFixed(1);
+        telemetry.pitch = +(-2.0 + jitter(1.5)).toFixed(1);
+      } else if (activeScenario === 'mud_hit') {
+        telemetry.winch_depth = 1.96;
+        telemetry.ct1_bottom = 1; // Bottom mud contact switch triggered!
+        telemetry.ct2_home = 0;
+        telemetry.winch_state = 'CHẠM BÙN ĐÁY!';
+        telemetry.ntu = +(185.0 + jitter(20)).toFixed(1);
+        telemetry.ph = +(6.82 + jitter(0.1)).toFixed(2);
+        telemetry.do_mgl = +(5.40 + jitter(0.2)).toFixed(2);
+      } else if (activeScenario === 'storm_tilt') {
+        telemetry.roll = +(22.4 + jitter(4.0)).toFixed(1); // Severe roll angle
+        telemetry.pitch = +(-17.8 + jitter(3.5)).toFixed(1);
+        telemetry.speed = +(6.2 + jitter(1.2)).toFixed(1);
+        telemetry.ntu = +(78.0 + jitter(10)).toFixed(1);
+      }
+
+      // Slight autonomous USV GPS movement along trajectory
+      telemetry.heading = (telemetry.heading + Math.round(jitter(8)) + 360) % 360;
+      const rad = (telemetry.heading * Math.PI) / 180;
+      telemetry.lat = +(telemetry.lat + Math.cos(rad) * 0.000045).toFixed(6);
+      telemetry.lng = +(telemetry.lng + Math.sin(rad) * 0.000045).toFixed(6);
+      telemetry.speed = activeScenario === 'storm_tilt' ? telemetry.speed : +(3.2 + Math.abs(jitter(0.8))).toFixed(1);
+      telemetry.gps_sats = Math.min(14, Math.max(8, Math.round(11 + jitter(2))));
+
+      // 3S Battery & 4G LTE fluctuations
+      telemetry.batt_v = +(Math.max(10.2, telemetry.batt_v - 0.002 + jitter(0.02))).toFixed(2);
+      telemetry.load_a = +(1.82 + Math.abs(jitter(0.35))).toFixed(2);
+      telemetry.csq = Math.min(31, Math.max(18, Math.round(24 + jitter(3))));
+
+      recalculateDerivedHydrology();
+    }
+
+    function recalculateDerivedHydrology(forcedWqi) {
+      // Nernst equation approximation for pH electrode mV
+      telemetry.ph_mv = +((7.0 - telemetry.ph) * 59.16).toFixed(1);
+
+      // Henry's Law DO Saturation
+      telemetry.do_theo = calcHenryDoSaturation(telemetry.water_temp);
+      telemetry.do_sat = +((telemetry.do_mgl / telemetry.do_theo) * 100).toFixed(1);
+
+      // EC & Salinity from TDS
+      telemetry.ec = Math.round(telemetry.tds * 2.0);
+      telemetry.salinity = +(telemetry.ec * 0.0005).toFixed(2);
+      telemetry.tss = +(telemetry.ntu * 1.3).toFixed(1);
+
+      // 3S Battery SOC % (9.6V = 0%, 12.6V = 100%)
+      telemetry.batt_pct = Math.min(100, Math.max(0, Math.round(((telemetry.batt_v - 9.6) / (12.6 - 9.6)) * 100)));
+      telemetry.power_w = +(telemetry.batt_v * telemetry.load_a).toFixed(2);
+
+      // Convert CSQ (0-31) to RSSI dBm (-113 + 2 * CSQ)
+      telemetry.rssi_dbm = -113 + (telemetry.csq * 2);
+
+      // VN-WQI Master Score
+      telemetry.wqi = forcedWqi !== undefined
+        ? Math.round(forcedWqi)
+        : computeVnWqi(telemetry.ph, telemetry.do_mgl, telemetry.do_sat, telemetry.tds, telemetry.ntu);
+
+      const wqiClass = getWqiClassification(telemetry.wqi);
+      telemetry.wqi_grade = wqiClass.grade;
+
+      // Update 3-tier profile slightly around current readings
+      tiers.t1.ph = +(telemetry.ph + 0.04).toFixed(2);
+      tiers.t1.do = +(telemetry.do_mgl + 0.15).toFixed(2);
+      tiers.t1.tds = telemetry.tds - 6;
+      tiers.t1.ntu = +(telemetry.ntu * 0.88).toFixed(1);
+      tiers.t1.temp = +(telemetry.water_temp + 0.4).toFixed(1);
+      tiers.t1.wqi = computeVnWqi(tiers.t1.ph, tiers.t1.do, 98, tiers.t1.tds, tiers.t1.ntu);
+
+      tiers.t2.ph = +(telemetry.ph - 0.08).toFixed(2);
+      tiers.t2.do = +(telemetry.do_mgl - 0.45).toFixed(2);
+      tiers.t2.tds = telemetry.tds + 10;
+      tiers.t2.ntu = +(telemetry.ntu * 1.25).toFixed(1);
+      tiers.t2.temp = +(telemetry.water_temp - 0.5).toFixed(1);
+      tiers.t2.wqi = computeVnWqi(tiers.t2.ph, tiers.t2.do, 90, tiers.t2.tds, tiers.t2.ntu);
+
+      tiers.t3.ph = +(telemetry.ph - 0.28).toFixed(2);
+      tiers.t3.do = +(Math.max(1.2, telemetry.do_mgl - 1.35)).toFixed(2);
+      tiers.t3.tds = telemetry.tds + 42;
+      tiers.t3.ntu = +(telemetry.ntu * 2.4).toFixed(1);
+      tiers.t3.temp = +(telemetry.water_temp - 1.3).toFixed(1);
+      tiers.t3.wqi = computeVnWqi(tiers.t3.ph, tiers.t3.do, 78, tiers.t3.tds, tiers.t3.ntu);
+
+      telemetry.tier1_wqi = tiers.t1.wqi;
+      telemetry.tier2_wqi = tiers.t2.wqi;
+      telemetry.tier3_wqi = tiers.t3.wqi;
+    }
+
+    function recordHistorySample() {
+      const nowStr = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      historyLog.push({
+        time: nowStr,
+        ...telemetry
+      });
+      if (historyLog.length > MAX_HISTORY) historyLog.shift();
+      refreshChartFromHistory();
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. DOM RENDERING & VISUAL ALERTS
+    // -------------------------------------------------------------------------
+    let lastFlashedSeq = 0;
+    function updateDashboardDOM() {
+      const now = new Date();
+      document.getElementById('headerTimestamp').textContent = now.toLocaleString('vi-VN', { hour12: false });
+
+      // Update Real-Time Hardware Sync Pipeline
+      const pipeSeqEl = document.getElementById('pipeSeq');
+      if (pipeSeqEl) pipeSeqEl.textContent = '#' + (telemetry.seq || packetCounter);
+      const pipeLatencyEl = document.getElementById('pipeLatency');
+      if (pipeLatencyEl) pipeLatencyEl.textContent = (telemetry.latency_ms || 42) + ' ms';
+      const pipeAgeEl = document.getElementById('pipeAge');
+      if (pipeAgeEl) pipeAgeEl.textContent = 'Vừa xong';
+      const nodePhEl = document.getElementById('nodePh');
+      if (nodePhEl) nodePhEl.textContent = telemetry.ph ? telemetry.ph.toFixed(2) : '--';
+      const nodeDoEl = document.getElementById('nodeDo');
+      if (nodeDoEl) nodeDoEl.textContent = telemetry.do_mgl ? telemetry.do_mgl.toFixed(2) : '--';
+      const nodeTempEl = document.getElementById('nodeTemp');
+      if (nodeTempEl) nodeTempEl.textContent = telemetry.water_temp ? telemetry.water_temp.toFixed(1) + '°C' : '--';
+      const nodeNtuEl = document.getElementById('nodeNtu');
+      if (nodeNtuEl) nodeNtuEl.textContent = telemetry.ntu ? telemetry.ntu.toFixed(1) + ' NTU' : '--';
+
+      // Visual flash effect on new incoming packet
+      const currentSeqNum = telemetry.seq || packetCounter;
+      if (currentSeqNum !== lastFlashedSeq) {
+        lastFlashedSeq = currentSeqNum;
+        const cardsToFlash = document.querySelectorAll('#syncPipelineCard, #cardPh, #cardDo, #cardTemp, #cardNtu');
+        cardsToFlash.forEach(el => {
+          el.classList.add('data-updated');
+          setTimeout(() => el.classList.remove('data-updated'), 750);
+        });
+      }
+      document.getElementById('headerRssi').textContent = `${telemetry.rssi_dbm} dBm`;
+
+      // 1. VN-WQI Circular Gauge & QCVN 08:2023/BTNMT Classification
+      const wqiInfo = getWqiClassification(telemetry.wqi);
+      const circumference = 414.69;
+      const offset = circumference - (telemetry.wqi / 100) * circumference;
+      const circleEl = document.getElementById('wqiGaugeCircle');
+      circleEl.style.strokeDashoffset = offset;
+      circleEl.style.stroke = wqiInfo.color;
+
+      document.getElementById('wqiScoreVal').textContent = telemetry.wqi;
+      document.getElementById('wqiScoreVal').style.color = wqiInfo.color;
+      document.getElementById('wqiColorLabel').textContent = wqiInfo.label;
+      document.getElementById('wqiColorLabel').style.color = wqiInfo.color;
+
+      const gradeBadge = document.getElementById('wqiGradeBadge');
+      gradeBadge.textContent = `HẠNG ${wqiInfo.grade}`;
+      gradeBadge.className = `px-3 py-1 rounded-lg font-mono font-bold text-sm border ${wqiInfo.badgeClass}`;
+      document.getElementById('wqiAdvice').textContent = wqiInfo.advice;
+
+      // 2. Hydrological Sensors
+      // pH (Alert if outside 6.5 - 8.5)
+      document.getElementById('valPh').textContent = telemetry.ph.toFixed(2);
+      document.getElementById('valPhMv').textContent = `${telemetry.ph_mv > 0 ? '+' : ''}${telemetry.ph_mv} mV`;
+      document.getElementById('phBar').style.width = `${Math.min(100, (telemetry.ph / 14) * 100)}%`;
+      const phCard = document.getElementById('phCard');
+      const phBadge = document.getElementById('phStatusBadge');
+      const isPhAlert = telemetry.ph < 6.5 || telemetry.ph > 8.5;
+      if (isPhAlert) {
+        phCard.classList.add('glass-card-danger');
+        phBadge.textContent = telemetry.ph < 6.5 ? 'CẢNH BÁO AXIT' : 'CẢNH BÁO KIỀM';
+        phBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/50';
+      } else {
+        phCard.classList.remove('glass-card-danger');
+        phBadge.textContent = 'BÌNH THƯỜNG';
+        phBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      }
+
+      // DO (Henry's Law)
+      document.getElementById('valDo').textContent = telemetry.do_mgl.toFixed(2);
+      document.getElementById('valDoSat').textContent = `${telemetry.do_sat}%`;
+      document.getElementById('valDoTheo').textContent = `${telemetry.do_theo} mg/L`;
+      document.getElementById('doBar').style.width = `${Math.min(100, (telemetry.do_mgl / 14) * 100)}%`;
+      const doBadge = document.getElementById('doStatusBadge');
+      if (telemetry.do_mgl < 4.0) {
+        doBadge.textContent = 'THIẾU OXY!';
+        doBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/50';
+      } else {
+        doBadge.textContent = 'GIÀU OXY';
+        doBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      }
+
+      // TDS & EC
+      document.getElementById('valTds').textContent = telemetry.tds;
+      document.getElementById('valEc').textContent = telemetry.ec;
+      document.getElementById('valSalinity').textContent = `${telemetry.salinity} PSU (ppt)`;
+
+      // NTU
+      document.getElementById('valNtu').textContent = telemetry.ntu.toFixed(1);
+      document.getElementById('valTss').textContent = `${telemetry.tss} mg/L`;
+      document.getElementById('ntuBar').style.width = `${Math.min(100, (telemetry.ntu / 1000) * 100)}%`;
+      const ntuBadge = document.getElementById('ntuStatusBadge');
+      if (telemetry.ntu > 100) {
+        ntuBadge.textContent = 'ĐỘ ĐỤC CAO!';
+        ntuBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50';
+      } else {
+        ntuBadge.textContent = 'NƯỚC TRONG';
+        ntuBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      }
+
+      // DS18B20 Water Temp
+      document.getElementById('valTemp').textContent = telemetry.water_temp.toFixed(1);
+      document.getElementById('tempBar').style.width = `${Math.min(100, (telemetry.water_temp / 50) * 100)}%`;
+
+      // Winch & Bottom Mud Contact Switch (CT1)
+      document.getElementById('valDepth').textContent = telemetry.winch_depth.toFixed(2);
+      document.getElementById('valWinchState').textContent = telemetry.winch_state;
+      document.getElementById('winchDepthFooter').textContent = `${telemetry.winch_depth.toFixed(2)} m`;
+
+      const winchCard = document.getElementById('winchCard');
+      const ct1Badge = document.getElementById('ct1Badge');
+      const ct1Led = document.getElementById('ct1Led');
+      const valCt1Text = document.getElementById('valCt1Text');
+      const valCt2Text = document.getElementById('valCt2Text');
+      const mudBox = document.getElementById('mudBottomBox');
+
+      if (telemetry.ct1_bottom === 1) {
+        winchCard.classList.add('glass-card-danger');
+        ct1Badge.textContent = 'CT1: CHẠM BÙN ĐÁY!';
+        ct1Badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-500/25 text-red-300 border border-red-500/60';
+        ct1Led.className = 'w-2.5 h-2.5 rounded-full bg-red-500 animate-ping';
+        valCt1Text.textContent = 'TRIGGERED (1)';
+        valCt1Text.className = 'text-red-400';
+        document.getElementById('ct1FooterStatus').textContent = 'CT1 = 1 (BÙN!)';
+        document.getElementById('ct1FooterStatus').className = 'text-red-400 font-bold';
+        mudBox.className = 'rounded-lg bg-red-950/90 border border-red-500 p-1.5 text-center animate-pulse';
+        document.getElementById('mudAlertSub').textContent = 'CẢNH BÁO: ĐÃ CHẠM BÙN!';
+      } else {
+        winchCard.classList.remove('glass-card-danger');
+        ct1Badge.textContent = 'CT1: AN TOÀN';
+        ct1Badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        ct1Led.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+        valCt1Text.textContent = 'OFF (0)';
+        valCt1Text.className = 'text-emerald-400';
+        document.getElementById('ct1FooterStatus').textContent = 'CT1 = 0';
+        document.getElementById('ct1FooterStatus').className = 'text-emerald-400 font-semibold';
+        mudBox.className = 'rounded-lg bg-amber-950/80 border border-amber-600/40 p-1.5 text-center';
+        document.getElementById('mudAlertSub').textContent = 'Công tắc CT1: An toàn';
+      }
+      valCt2Text.textContent = telemetry.winch_depth <= 0.35 ? 'ON (1)' : 'OFF (0)';
+
+      // Visual Probe Cage Position (0.0m -> 2.0m mapped to 4% -> 84%)
+      const topPct = Math.min(86, Math.max(4, (telemetry.winch_depth / 2.0) * 84));
+      document.getElementById('visualProbeCage').style.top = `${topPct}%`;
+      document.getElementById('visualProbeLabel').textContent = `${telemetry.winch_depth.toFixed(2)}m`;
+
+      // Update 3-tier table cells
+      ['t1', 't2', 't3'].forEach(k => {
+        document.getElementById(`${k}_ph`).textContent = tiers[k].ph.toFixed(2);
+        document.getElementById(`${k}_do`).textContent = tiers[k].do.toFixed(2);
+        document.getElementById(`${k}_tds`).textContent = tiers[k].tds;
+        document.getElementById(`${k}_ntu`).textContent = `${tiers[k].ntu} NTU`;
+        document.getElementById(`${k}_temp`).textContent = `${tiers[k].temp}°C`;
+        document.getElementById(`${k}_wqi`).textContent = tiers[k].wqi;
+      });
+
+      // 4. GPS Map & Kinematics
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setEl('valLat', `${telemetry.lat.toFixed(6)}° N`);
+      setEl('valLng', `${telemetry.lng.toFixed(6)}° E`);
+      setEl('valSpeed', telemetry.speed.toFixed(1));
+      setEl('valHeading', `${String(telemetry.heading).padStart(3, '0')}°`);
+      setEl('valSatsBadge', telemetry.gps_sats);
+      setEl('valSats', telemetry.gps_sats);
+      document.getElementById('hudHeadingText').textContent = `${String(telemetry.heading).padStart(3, '0')}°`;
+      document.getElementById('kinHeading').textContent = `${telemetry.heading}° (${getCompassDirection(telemetry.heading)})`;
+      document.getElementById('kinSpeed').textContent = `${telemetry.speed.toFixed(1)} km/h`;
+      document.getElementById('valHdop').textContent = `${telemetry.hdop.toFixed(2)} m`;
+
+      // Artificial Horizon & Tilt Indicator
+      document.getElementById('valRoll').textContent = `${telemetry.roll > 0 ? '+' : ''}${telemetry.roll.toFixed(1)}°`;
+      document.getElementById('valPitch').textContent = `${telemetry.pitch > 0 ? '+' : ''}${telemetry.pitch.toFixed(1)}°`;
+      const hudHorizon = document.getElementById('hudHorizon');
+      if (hudHorizon) {
+        hudHorizon.style.transform = `rotate(${-telemetry.roll}deg) translateY(${telemetry.pitch * 2.2}px)`;
+      }
+
+      // Tilt Anti-Capsize Alarm
+      const isTiltAlarm = Math.abs(telemetry.roll) > 15 || Math.abs(telemetry.pitch) > 15;
+      const tiltAlarmText = document.getElementById('tiltAlarmText');
+      const imuBadge = document.getElementById('imuSafetyBadge');
+      if (isTiltAlarm) {
+        tiltAlarmText.textContent = 'NGUY CƠ LẬT!';
+        tiltAlarmText.className = 'text-red-400 font-bold animate-pulse';
+        imuBadge.textContent = 'NGHIÊNG NGUY HIỂM';
+        imuBadge.className = 'text-red-400 font-bold';
+      } else {
+        tiltAlarmText.textContent = '< ±15° OK';
+        tiltAlarmText.className = 'text-emerald-400 font-semibold';
+        imuBadge.textContent = 'ỔN ĐỊNH';
+        imuBadge.className = 'text-emerald-400 font-bold';
+      }
+
+      // Update Leaflet Map Marker & Trajectory
+      if (buoyMarker) {
+        buoyMarker.setLatLng([telemetry.lat, telemetry.lng]);
+        buoyMarker.setIcon(createBuoyIcon(telemetry.heading));
+        buoyMarker.setPopupContent(`
+          <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#0b0f19;">
+            <b style="color:#0891b2;">Phao USV-01 (Aqua-Sentinel)</b><br/>
+            Tọa độ: ${telemetry.lat.toFixed(6)}, ${telemetry.lng.toFixed(6)}<br/>
+            Tốc độ: ${telemetry.speed} km/h • Hướng: ${telemetry.heading}°<br/>
+            WQI: <b>${telemetry.wqi} (${telemetry.wqi_grade})</b> • pH: ${telemetry.ph}<br/>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${telemetry.lat},${telemetry.lng}" target="_blank" style="color:#2563eb; font-weight:bold; text-decoration:underline; display:inline-block; margin-top:4px;">🧭 Dẫn đường qua Google Maps</a>
+          </div>
+        `);
+      }
+      if (trajectoryLine) {
+        gpsPathCoords.push([telemetry.lat, telemetry.lng]);
+        if (gpsPathCoords.length > 80) gpsPathCoords.shift();
+        trajectoryLine.setLatLngs(gpsPathCoords);
+      }
+
+      // Update Home Distance Line & Geofence
+      const distToHome = calcDistanceMeters(homeLocation.lat, homeLocation.lng, telemetry.lat, telemetry.lng);
+      const valHomeDistEl = document.getElementById('valHomeDist');
+      if (valHomeDistEl) valHomeDistEl.textContent = `${distToHome} m`;
+
+      if (homeDistanceLine) {
+        homeDistanceLine.setLatLngs([[homeLocation.lat, homeLocation.lng], [telemetry.lat, telemetry.lng]]);
+      }
+
+      const geofencePill = document.getElementById('geofencePill');
+      const isBreach = distToHome > GEOFENCE_RADIUS_METERS;
+      if (geofencePill) {
+        if (isBreach) {
+          geofencePill.textContent = `VƯỢT VÙNG AN TOÀN (${distToHome}m)!`;
+          geofencePill.className = 'px-1.5 py-0.2 rounded text-[9px] bg-red-500/25 text-red-300 border border-red-500/60 font-bold animate-pulse';
+          if (geofenceCircle) geofenceCircle.setStyle({ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.15 });
+        } else {
+          geofencePill.textContent = `VÙNG AN TOÀN (${distToHome}m / ${GEOFENCE_RADIUS_METERS}m)`;
+          geofencePill.className = 'px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold';
+          if (geofenceCircle) geofenceCircle.setStyle({ color: '#06b6d4', fillColor: '#06b6d4', fillOpacity: 0.08 });
+        }
+      }
+
+      // Auto-Follow Buoy on Map
+      if (autoFollowBuoy && map) {
+        map.panTo([telemetry.lat, telemetry.lng], { animate: true, duration: 0.5 });
+      }
+
+      // 5. Battery BMS 3S
+      document.getElementById('valBattPct').textContent = `${telemetry.batt_pct}%`;
+      document.getElementById('battBar').style.width = `${telemetry.batt_pct}%`;
+      document.getElementById('valBattV').textContent = `${telemetry.batt_v.toFixed(2)} V`;
+      document.getElementById('valLoadA').textContent = `${telemetry.load_a.toFixed(2)} A`;
+      document.getElementById('valPowerW').textContent = `${telemetry.power_w.toFixed(2)} W`;
+      const bmsBadge = document.getElementById('bmsStatusBadge');
+      if (telemetry.batt_v < 10.5) {
+        bmsBadge.textContent = 'PIN YẾU (LOW BATT)';
+        bmsBadge.className = 'px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse';
+      } else {
+        bmsBadge.textContent = '3S Li-Ion OK';
+        bmsBadge.className = 'px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      }
+
+      // 4G LTE Viettel Modem
+      document.getElementById('valSimState').textContent = telemetry.csq > 0 ? 'CONNECTED' : 'SEARCHING';
+      document.getElementById('valCsq').textContent = `${telemetry.csq} / 31`;
+      document.getElementById('valRssi').textContent = `${telemetry.rssi_dbm} dBm`;
+      document.getElementById('valPackets').textContent = packetCounter.toLocaleString();
+      document.getElementById('valLatency').textContent = `${telemetry.latency_ms} ms`;
+
+      // 6. Global Alert Banner
+      const globalAlert = document.getElementById('globalAlertBanner');
+      const globalAlertText = document.getElementById('globalAlertText');
+      const alerts = [];
+      if (isPhAlert) alerts.push(`Độ pH bất thường (${telemetry.ph})`);
+      if (telemetry.do_mgl < 4.0) alerts.push(`Thiếu hụt oxy DO (${telemetry.do_mgl} mg/L)`);
+      if (telemetry.ntu > 100) alerts.push(`Độ đục vượt chuẩn (${telemetry.ntu} NTU)`);
+      if (telemetry.ct1_bottom === 1) alerts.push(`CẢNH BÁO TỜI CHẠM BÙN ĐÁY (CT1 TRIGGERED)`);
+      if (isTiltAlarm) alerts.push(`Góc nghiêng phao nguy hiểm (Roll: ${telemetry.roll}°, Pitch: ${telemetry.pitch}°)`);
+      if (telemetry.batt_v < 10.5) alerts.push(`Điện áp pin 3S thấp (${telemetry.batt_v}V)`);
+
+      if (alerts.length > 0) {
+        globalAlert.classList.remove('hidden');
+        globalAlertText.textContent = `CẢNH BÁO HỆ THỐNG: ${alerts.join(' • ')}`;
+      } else {
+        globalAlert.classList.add('hidden');
+      }
+
+      // 7. Telemetry Matrix (All 30 Parameters)
+      renderParameterMatrix();
+    }
+
+    // Helper: Compass direction string
+    function getCompassDirection(deg) {
+      const dirs = ['Bắc (N)', 'Đông Bắc (NE)', 'Đông (E)', 'Đông Nam (SE)', 'Nam (S)', 'Tây Nam (SW)', 'Tây (W)', 'Tây Bắc (NW)'];
+      const index = Math.round(((deg % 360) / 45)) % 8;
+      return dirs[index];
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. TELEMETRY MATRIX RENDERING (30 PARAMETERS)
+    // -------------------------------------------------------------------------
+    function renderParameterMatrix() {
+      const container = document.getElementById('paramMatrixGrid');
+      if (!container) return;
+
+      const items = [
+        { name: '1. VN-WQI Tổng Hợp', val: `${telemetry.wqi} (${telemetry.wqi_grade})`, color: 'text-cyan-400' },
+        { name: '2. Độ pH (Nernst)', val: `${telemetry.ph} pH`, color: 'text-white' },
+        { name: '3. Điện thế pH electrode', val: `${telemetry.ph_mv > 0 ? '+' : ''}${telemetry.ph_mv} mV`, color: 'text-slate-300' },
+        { name: '4. Oxy hòa tan DO', val: `${telemetry.do_mgl} mg/L`, color: 'text-sky-300' },
+        { name: '5. DO Bão hòa Henry', val: `${telemetry.do_sat}%`, color: 'text-sky-400' },
+        { name: '6. DO Lý thuyết (Temp)', val: `${telemetry.do_theo} mg/L`, color: 'text-slate-300' },
+        { name: '7. Tổng khoáng TDS', val: `${telemetry.tds} ppm`, color: 'text-indigo-300' },
+        { name: '8. Độ dẫn điện EC', val: `${telemetry.ec} µS/cm`, color: 'text-cyan-300' },
+        { name: '9. Độ mặn (Salinity)', val: `${telemetry.salinity} PSU`, color: 'text-slate-300' },
+        { name: '10. Độ đục NTU (860nm)', val: `${telemetry.ntu} NTU`, color: 'text-amber-300' },
+        { name: '11. Chất rắn lơ lửng TSS', val: `${telemetry.tss} mg/L`, color: 'text-slate-300' },
+        { name: '12. Nhiệt độ DS18B20', val: `${telemetry.water_temp}°C`, color: 'text-rose-300' },
+        { name: '13. Độ sâu tời hiện tại', val: `${telemetry.winch_depth.toFixed(2)} m`, color: 'text-teal-300' },
+        { name: '14. Trạng thái tời đo', val: telemetry.winch_state, color: 'text-cyan-300' },
+        { name: '15. Chạm bùn đáy (CT1)', val: telemetry.ct1_bottom ? 'CHẠM BÙN (1)' : 'AN TOÀN (0)', color: telemetry.ct1_bottom ? 'text-red-400' : 'text-emerald-400' },
+        { name: '16. Tời chạm gốc (CT2)', val: telemetry.ct2_home ? 'HOME (1)' : 'OFF (0)', color: 'text-slate-300' },
+        { name: '17. WQI Tầng Mặt (0.3m)', val: `${tiers.t1.wqi} (A1)`, color: 'text-cyan-300' },
+        { name: '18. WQI Tầng Giữa (1.0m)', val: `${tiers.t2.wqi} (A2)`, color: 'text-sky-300' },
+        { name: '19. WQI Tầng Đáy (1.8m)', val: `${tiers.t3.wqi} (B1)`, color: 'text-indigo-300' },
+        { name: '20. Vĩ độ GNSS (Lat)', val: `${telemetry.lat.toFixed(6)}°N`, color: 'text-cyan-300' },
+        { name: '21. Kinh độ GNSS (Lng)', val: `${telemetry.lng.toFixed(6)}°E`, color: 'text-cyan-300' },
+        { name: '22. Hướng la bàn (Heading)', val: `${telemetry.heading}°`, color: 'text-white' },
+        { name: '23. Vận tốc USV', val: `${telemetry.speed} km/h`, color: 'text-emerald-400' },
+        { name: '24. Vệ tinh khóa GPS', val: `${telemetry.gps_sats} Sats`, color: 'text-cyan-300' },
+        { name: '25. Góc nghiêng lắc Roll', val: `${telemetry.roll > 0 ? '+' : ''}${telemetry.roll}°`, color: 'text-cyan-300' },
+        { name: '26. Góc nghiêng mũi Pitch', val: `${telemetry.pitch > 0 ? '+' : ''}${telemetry.pitch}°`, color: 'text-cyan-300' },
+        { name: '27. Điện áp tổ Pin 3S', val: `${telemetry.batt_v.toFixed(2)} V`, color: 'text-white' },
+        { name: '28. Dung lượng Pin SOC', val: `${telemetry.batt_pct}%`, color: 'text-emerald-400' },
+        { name: '29. Dòng tải & Công suất', val: `${telemetry.load_a}A / ${telemetry.power_w}W`, color: 'text-amber-300' },
+        { name: '30. Sóng 4G LTE Viettel', val: `CSQ ${telemetry.csq} (${telemetry.rssi_dbm} dBm)`, color: 'text-emerald-400' }
+      ];
+
+      container.innerHTML = items.map(p => `
+        <div class="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 hover:border-cyan-500/40 transition">
+          <span class="text-[10px] text-slate-400 block truncate" title="${p.name}">${p.name}</span>
+          <span class="text-sm font-bold ${p.color} block mt-0.5 truncate">${p.val}</span>
+        </div>
+      `).join('');
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. INTERACTIVE ACTIONS & SCENARIOS
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // ASYNCHRONOUS NON-BLOCKING HARDWARE COMMAND DISPATCHER (ZERO-CONFLICT)
+    // -------------------------------------------------------------------------
+    async function sendHardwareCommand(cmdQuery, label) {
+      console.log(`[DISPATCH CMD] Gửi điều lệnh độc lập: ${label} (${cmdQuery})`);
+      try {
+        const ctrl = new AbortController();
+        const tId = setTimeout(() => ctrl.abort(), 2000);
+        // Gửi không đồng bộ (Asynchronous) - Hoàn toàn không chặn luồng cập nhật thông số
+        fetch(`/api/cmd?${cmdQuery}`, { method: 'POST', signal: ctrl.signal, cache: 'no-store' })
+          .then(res => {
+            clearTimeout(tId);
+            if (res.ok) {
+              speakAlert(`Đã gửi điều lệnh ${label}`);
+            }
+          })
+          .catch(() => {});
+      } catch (e) {}
+    }
+
+    function triggerWinchCycle() {
+      const depths = [0.30, 1.00, 1.80];
+      const states = ['TẦNG MẶT (0.3m)', 'TẦNG GIỮA (1.0m)', 'TẦNG ĐÁY (1.8m)'];
+      let curr = depths.indexOf(telemetry.winch_depth);
+      let next = (curr + 1) % depths.length;
+      telemetry.winch_depth = depths[next];
+      telemetry.winch_state = states[next];
+      
+      // Gửi lệnh xuống phần cứng độc lập với luồng đo
+      sendHardwareCommand('w=3', 'Chu trình quét tời 3 tầng');
+      
+      recalculateDerivedHydrology();
+      updateDashboardDOM();
+    }
+
+    function applyScenario(scenario) {
+      activeScenario = scenario;
+      generateSimulatedTelemetry();
+      recordHistorySample();
+      updateDashboardDOM();
+    }
+
+    function toggleConfigModal() {
+      const m = document.getElementById('configModal');
+      m.classList.toggle('hidden');
+      document.getElementById('inputModeSelect').value = APP_CONFIG.mode;
+      document.getElementById('inputApiUrl').value = APP_CONFIG.apiUrl;
+    }
+
+    function saveApiConfig() {
+      APP_CONFIG.mode = document.getElementById('inputModeSelect').value;
+      const u = document.getElementById('inputApiUrl').value.trim();
+      if (u) APP_CONFIG.apiUrl = u;
+      localStorage.setItem('usv_mode', APP_CONFIG.mode);
+      localStorage.setItem('usv_api_url', APP_CONFIG.apiUrl);
+      toggleConfigModal();
+      pollTelemetryData();
+    }
+
+    function setConnectionBadge(text, isLive) {
+      const badge = document.getElementById('dataSourceBadge');
+      const pulse = document.getElementById('sourcePulse');
+      const sourceText = document.getElementById('sourceText');
+      sourceText.textContent = text;
+      if (isLive) {
+        pulse.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+        sourceText.className = 'text-emerald-300 font-semibold';
+      } else {
+        pulse.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+        sourceText.className = 'text-amber-300 font-semibold';
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. CSV LOG EXPORT
+    // -------------------------------------------------------------------------
+    window.exportDashboardCsv = exportTelemetryCsv;
+    function exportTelemetryCsv() {
+      if (historyLog.length === 0) {
+        alert('Chưa có mẫu dữ liệu để xuất!');
+        return;
+      }
+      const headers = ['Timestamp', 'WQI', 'Grade', 'pH', 'DO_mgL', 'TDS_ppm', 'EC_uS', 'NTU', 'Temp_C', 'Depth_m', 'CT1_Mud', 'Lat', 'Lng', 'Heading', 'Speed', 'Batt_V', 'Batt_Pct', 'CSQ_4G'];
+      const rows = historyLog.map(h => [
+        `"${h.time}"`, h.wqi, h.wqi_grade, h.ph, h.do_mgl, h.tds, h.ec, h.ntu, h.water_temp,
+        h.winch_depth, h.ct1_bottom, h.lat, h.lng, h.heading, h.speed, h.batt_v, h.batt_pct, h.csq
+      ]);
+      const csvContent = 'data:text/csv;charset=utf-8,﻿' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `USV_BUOY_TELEMETRY_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. RUNTIME INITIALIZATION & TIMERS
+    // -------------------------------------------------------------------------
+    
+    function switchSourceMode(val) {
+      APP_CONFIG.mode = val;
+      localStorage.setItem('usv_mode', val);
+      pollTelemetryData();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      initChart();
+      generateSimulatedTelemetry();
+      recordHistorySample();
+      updateDashboardDOM();
+
+      // Countdown ticker (100ms)
+      setInterval(() => {
+        pollTimerCountdown -= 0.1;
+        if (pollTimerCountdown <= 0) pollTimerCountdown = 4.0;
+        const el = document.getElementById('pollCountdown');
+        if (el) el.textContent = `${pollTimerCountdown.toFixed(1)}s`;
+      }, 100);
+
+      // 4-second Polling Loop
+      setInterval(pollTelemetryData, APP_CONFIG.pollIntervalMs);
+      pollTelemetryData();
+    });
+  </script>
+</body>
+</html>

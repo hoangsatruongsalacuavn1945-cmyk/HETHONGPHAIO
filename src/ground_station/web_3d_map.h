@@ -1,0 +1,2510 @@
+#ifndef WEB_3D_MAP_H
+#define WEB_3D_MAP_H
+#include <pgmspace.h>
+
+const char PAGE_3D_MAP[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản Đồ 3D Không Gian Chất Lượng Nước - USV Buoy</title>
+  <!-- 100% Offline Embedded CSS (Zero External CDN Dependency) -->
+  <style>
+    :root {
+      --bg-dark: #030712; --cyan: #38bdf8; --cyan-bright: #00f5d4; --emerald: #34d399;
+      --amber: #fbbf24; --red: #ef4444; --slate-300: #cbd5e1; --slate-400: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #030712; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: #f1f5f9; }
+    #glCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: block; z-index: 1; }
+    .glass-card { background: rgba(15, 23, 42, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(56, 189, 248, 0.28); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.65); }
+    .glass-button { background: rgba(30, 41, 59, 0.88); backdrop-filter: blur(8px); border: 1px solid rgba(148, 163, 184, 0.28); color: #cbd5e1; cursor: pointer; transition: all 0.16s ease; }
+    .glass-button:hover { background: rgba(56, 189, 248, 0.25); border-color: rgba(56, 189, 248, 0.65); color: #fff; transform: translateY(-1px); }
+    .glass-button.active { background: #0284c7; border-color: #38bdf8; color: #fff; box-shadow: 0 0 14px rgba(56, 189, 248, 0.5); }
+
+    /* Layout */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-wrap { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .items-baseline { align-items: baseline; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .grid { display: grid; }
+    .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .col-span-2 { grid-column: span 2 / span 2; }
+    .hidden { display: none !important; }
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+    .fixed { position: fixed; }
+
+    /* Positioning */
+    .top-3 { top: 12px; } .left-3 { left: 12px; } .right-3 { right: 12px; } .bottom-3 { bottom: 12px; }
+    .bottom-14 { bottom: 56px; } .bottom-16 { bottom: 64px; } .top-20 { top: 76px; }
+    .left-1\/2 { left: 50%; } .top-1\/2 { top: 50%; }
+    .-translate-x-1\/2 { transform: translateX(-50%); }
+    .-translate-y-1\/2 { transform: translateY(-50%); }
+    .z-10 { z-index: 10; } .z-20 { z-index: 20; }
+    .pointer-events-none { pointer-events: none; }
+    .pointer-events-auto { pointer-events: auto; }
+    .overflow-y-auto { overflow-y: auto; }
+    .select-none { user-select: none; }
+
+    /* Sizing */
+    .w-full { width: 100%; } .h-full { height: 100%; }
+    .w-64 { width: 268px; } .w-72 { width: 296px; } .w-80 { width: 320px; }
+    .w-2 { width: 8px; } .h-2 { height: 8px; }
+    .w-3 { width: 12px; } .h-3 { height: 12px; }
+    .w-3\.5 { width: 14px; } .h-3\.5 { height: 14px; }
+    .h-1\.5 { height: 6px; } .h-2\.5 { height: 10px; }
+
+    /* Spacing */
+    .p-1 { padding: 4px; } .p-2 { padding: 8px; } .p-2\.5 { padding: 10px; } .p-3\.5 { padding: 14px; } .p-4 { padding: 16px; }
+    .px-1\.5 { padding-left: 6px; padding-right: 6px; }
+    .px-2 { padding-left: 8px; padding-right: 8px; }
+    .px-2\.5 { padding-left: 10px; padding-right: 10px; }
+    .px-3 { padding-left: 12px; padding-right: 12px; }
+    .px-4 { padding-left: 16px; padding-right: 16px; }
+    .py-0\.5 { padding-top: 2px; padding-bottom: 2px; }
+    .py-1 { padding-top: 4px; padding-bottom: 4px; }
+    .py-1\.5 { padding-top: 6px; padding-bottom: 6px; }
+    .py-2 { padding-top: 8px; padding-bottom: 8px; }
+    .py-2\.5 { padding-top: 10px; padding-bottom: 10px; }
+    .mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 14px; }
+    .mt-0\.5 { margin-top: 2px; } .mt-1 { margin-top: 4px; } .mr-1 { margin-right: 4px; }
+    .pb-1\.5 { padding-bottom: 6px; } .pb-2 { padding-bottom: 8px; }
+    .pt-1 { padding-top: 4px; } .pt-2 { padding-top: 8px; }
+    .pr-2 { padding-right: 8px; } .pl-1 { padding-left: 4px; }
+    .gap-1 { gap: 4px; } .gap-1\.5 { gap: 6px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-x-2 { column-gap: 8px; }
+    .space-y-1\.5 > * + * { margin-top: 6px; }
+    .space-y-2 > * + * { margin-top: 8px; }
+    .space-y-3 > * + * { margin-top: 12px; }
+
+    /* Borders & Radius */
+    .rounded { border-radius: 4px; } .rounded-lg { border-radius: 8px; }
+    .rounded-xl { border-radius: 12px; } .rounded-2xl { border-radius: 16px; }
+    .rounded-full { border-radius: 9999px; }
+    .border { border: 1px solid rgba(255,255,255,0.12); }
+    .border-b { border-bottom: 1px solid rgba(255,255,255,0.12); }
+    .border-t { border-top: 1px solid rgba(255,255,255,0.12); }
+    .border-r { border-right: 1px solid rgba(255,255,255,0.12); }
+    .border-slate-700 { border-color: #334155; }
+    .border-slate-700\/60 { border-color: rgba(51, 65, 85, 0.6); }
+    .border-slate-800 { border-color: #1e293b; }
+    .border-cyan-400 { border-color: #38bdf8; }
+    .border-cyan-400\/40 { border-color: rgba(56, 189, 248, 0.4); }
+    .border-cyan-500\/30 { border-color: rgba(6, 182, 212, 0.35); }
+    .border-cyan-800\/60 { border-color: rgba(7, 89, 133, 0.6); }
+    .border-emerald-700 { border-color: #047857; }
+    .border-emerald-700\/60 { border-color: rgba(4, 120, 87, 0.6); }
+    .border-amber-400\/50 { border-color: rgba(251, 191, 36, 0.5); }
+
+    /* Backgrounds */
+    .bg-slate-900\/40 { background: rgba(15, 23, 42, 0.45); }
+    .bg-slate-900\/50 { background: rgba(15, 23, 42, 0.55); }
+    .bg-slate-900\/60 { background: rgba(15, 23, 42, 0.65); }
+    .bg-slate-700 { background: #334155; }
+    .bg-cyan-950\/30 { background: rgba(8, 47, 73, 0.35); }
+    .bg-cyan-950\/40 { background: rgba(8, 47, 73, 0.45); }
+    .bg-cyan-950\/80 { background: rgba(8, 47, 73, 0.8); }
+    .bg-emerald-950 { background: #022c22; }
+    .bg-amber-950 { background: #451a03; }
+    .bg-emerald-400 { background: #34d399; }
+    .bg-amber-400 { background: #fbbf24; }
+    .bg-amber-500 { background: #f59e0b; }
+
+    /* Typography */
+    .text-\[10px\] { font-size: 10px; } .text-\[11px\] { font-size: 11px; }
+    .text-xs { font-size: 12px; } .text-sm { font-size: 14px; }
+    .text-base { font-size: 16px; } .text-lg { font-size: 18px; } .text-3xl { font-size: 28px; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .font-normal { font-weight: 400; } .font-semibold { font-weight: 600; }
+    .font-bold { font-weight: 700; } .font-black { font-weight: 900; }
+    .uppercase { text-transform: uppercase; }
+    .tracking-wide { letter-spacing: 0.5px; } .tracking-wider { letter-spacing: 1px; } .tracking-tight { letter-spacing: -0.5px; }
+    .text-right { text-align: right; }
+
+    /* Colors */
+    .text-cyan-200 { color: #a5f3fc; } .text-cyan-300 { color: #67e8f9; } .text-cyan-400 { color: #38bdf8; }
+    .text-emerald-300 { color: #6ee7b7; } .text-emerald-400 { color: #34d399; }
+    .text-sky-300 { color: #7dd3fc; } .text-sky-400 { color: #38bdf8; }
+    .text-amber-300 { color: #fcd34d; } .text-amber-400 { color: #fbbf24; }
+    .text-red-400 { color: #f87171; } .text-rose-400 { color: #fb7185; }
+    .text-purple-300 { color: #d8b4fe; } .text-black { color: #000; }
+    .text-slate-100 { color: #f1f5f9; } .text-slate-300 { color: #cbd5e1; }
+    .text-slate-400 { color: #94a3b8; } .text-slate-500 { color: #64748b; }
+
+    /* Animations */
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-ping { animation: ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4); }
+    .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
+    .cursor-pointer { cursor: pointer; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.35); border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+
+    /* Mobile Responsive Overrides */
+    @media (max-width: 860px) {
+      header { flex-direction: column; align-items: stretch !important; gap: 6px !important; }
+      header > div { justify-content: center; }
+      aside.w-64 { width: calc(100% - 24px) !important; max-height: 28vh; top: auto !important; bottom: 68px !important; }
+      aside.w-72 { display: none !important; }
+      footer { width: calc(100% - 24px) !important; bottom: 8px !important; padding: 6px 8px !important; }
+    }
+  </style>
+</head>
+<body class="text-slate-100 select-none">
+  <!-- 3D Canvas Viewport -->
+  <canvas id="glCanvas"></canvas>
+
+  <!-- Top Navigation & Metric Selector -->
+  <header class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10 flex-wrap gap-2">
+    <div class="glass-card px-4 py-2.5 rounded-xl pointer-events-auto flex items-center gap-3 shadow-lg">
+      <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+      <div>
+        <h1 class="text-sm font-bold tracking-wide text-cyan-300 flex items-center gap-2">
+          <span>BẢN ĐỒ 3D KHÔNG GIAN NƯỚC</span>
+          <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/60">CHEMSTATION AI v4.3-AUDIT-PRO</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Khảo sát 3 tầng nước (Mặt 0.3m • Giữa 1.0m • Đáy 1.8m) & Trụ Cột Không Gian 3D</p>
+      </div>
+    </div>
+
+    <!-- Parameter Switcher Pills -->
+    <div class="glass-card p-1 rounded-xl pointer-events-auto flex items-center gap-1 shadow-lg">
+      <button onclick="setParam('wqi')" id="btn-wqi" class="glass-button active px-3 py-1.5 rounded-lg text-xs font-semibold">VN-WQI</button>
+      <button onclick="setParam('ph')" id="btn-ph" class="glass-button px-3 py-1.5 rounded-lg text-xs font-semibold">Độ pH</button>
+      <button onclick="setParam('do')" id="btn-do" class="glass-button px-3 py-1.5 rounded-lg text-xs font-semibold">DO (Ước tính)</button>
+      <button onclick="setParam('tds')" id="btn-tds" class="glass-button px-3 py-1.5 rounded-lg text-xs font-semibold">Khoáng (TDS)</button>
+      <button onclick="setParam('ntu')" id="btn-ntu" class="glass-button px-3 py-1.5 rounded-lg text-xs font-semibold">Độ đục (NTU)</button>
+      <button onclick="setParam('temp')" id="btn-temp" class="glass-button px-3 py-1.5 rounded-lg text-xs font-semibold">Nhiệt độ</button>
+    </div>
+
+    <!-- Status & Data Source Switcher -->
+    <div class="glass-card px-3 py-2 rounded-xl pointer-events-auto flex items-center gap-2 shadow-lg">
+      <span id="wifiBadge" class="text-xs px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-mono">WiFi: Mang bao tri</span>
+      <span id="connBadge" class="text-xs px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700/60 font-mono">CHỜ KẾT NỐI...</span>
+      <span id="simBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-600 font-mono font-bold flex items-center gap-1.5 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 4G LTE: ONLINE
+      </span>
+      <button onclick="openHardwareModal()" class="glass-button text-xs px-2.5 py-1 rounded-lg text-cyan-300 border border-cyan-600/50 flex items-center gap-1">
+        <span>🛠️</span><span>Chẩn đoán (11)</span>
+      </button>
+      <button onclick="toggleSource()" id="btnSource" class="glass-button text-xs px-2.5 py-1 rounded-lg text-slate-300">Nguồn: Phao Thật</button>
+    </div>
+  </header>
+
+  <!-- U-02: Demo Watermark Banner (chỉ hiện khi người dùng bật chế độ Mô Phỏng) -->
+  <div id="demoBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-amber-950 border border-amber-400/50 text-amber-300 text-xs font-bold tracking-wide pointer-events-none shadow-2xl">
+    ⚠️ CHẾ ĐỘ MÔ PHỎNG (DEMO) – KHÔNG PHẢI DỮ LIỆU PHẦN CỨNG THẬT
+  </div>
+
+  <!-- Left Control Panel: Water Column Profiler & Slicing -->
+  <aside class="absolute left-3 top-20 bottom-14 w-64 glass-card p-3.5 rounded-2xl pointer-events-auto flex flex-col justify-between shadow-2xl z-10 overflow-y-auto">
+    <div>
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/60">
+        <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+          MẶT CẮT 3 TẦNG NƯỚC
+        </span>
+        <span id="curDepthTxt" class="text-xs font-mono font-bold text-amber-300">--m</span>
+      </div>
+
+      <!-- Layer Cards (U-01: Khởi tạo "--", tuyệt đối không hiển thị số giả) -->
+      <div class="space-y-2 mb-3">
+        <!-- Layer 1: Surface -->
+        <div onclick="selectLayer(0)" id="card-l1" class="p-2.5 rounded-xl border border-cyan-500/30 bg-cyan-950/30 hover:border-cyan-400 cursor-pointer transition">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="font-bold text-cyan-300">1. TẦNG MẶT (0.3m)</span>
+            <span id="l1-badge" class="px-1.5 py-0.5 rounded text-[10px] bg-slate-900/60 text-slate-400 font-mono">WQI: --</span>
+          </div>
+          <div class="grid grid-cols-2 text-[11px] text-slate-300 gap-x-2">
+            <div>pH: <span id="l1-ph" class="font-mono text-cyan-200">--</span></div>
+            <div>TDS: <span id="l1-tds" class="font-mono text-cyan-200">-- ppm</span></div>
+            <div>NTU: <span id="l1-ntu" class="font-mono text-cyan-200">--</span></div>
+            <div>Temp: <span id="l1-temp" class="font-mono text-cyan-200">--°C</span></div>
+          </div>
+        </div>
+
+        <!-- Layer 2: Middle -->
+        <div onclick="selectLayer(1)" id="card-l2" class="p-2.5 rounded-xl border border-slate-700 bg-slate-900/40 hover:border-cyan-400 cursor-pointer transition">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="font-bold text-sky-300">2. TẦNG GIỮA (1.0m)</span>
+            <span id="l2-badge" class="px-1.5 py-0.5 rounded text-[10px] bg-slate-900/60 text-slate-400 font-mono">WQI: --</span>
+          </div>
+          <div class="grid grid-cols-2 text-[11px] text-slate-300 gap-x-2">
+            <div>pH: <span id="l2-ph" class="font-mono text-cyan-200">--</span></div>
+            <div>TDS: <span id="l2-tds" class="font-mono text-cyan-200">-- ppm</span></div>
+            <div>NTU: <span id="l2-ntu" class="font-mono text-cyan-200">--</span></div>
+            <div>Temp: <span id="l2-temp" class="font-mono text-cyan-200">--°C</span></div>
+          </div>
+        </div>
+
+        <!-- Layer 3: Bottom -->
+        <div onclick="selectLayer(2)" id="card-l3" class="p-2.5 rounded-xl border border-slate-700 bg-slate-900/40 hover:border-cyan-400 cursor-pointer transition">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="font-bold text-amber-300">3. TẦNG ĐÁY (1.8m)</span>
+            <span id="l3-badge" class="px-1.5 py-0.5 rounded text-[10px] bg-slate-900/60 text-slate-400 font-mono">WQI: --</span>
+          </div>
+          <div class="grid grid-cols-2 text-[11px] text-slate-300 gap-x-2">
+            <div>pH: <span id="l3-ph" class="font-mono text-cyan-200">--</span></div>
+            <div>TDS: <span id="l3-tds" class="font-mono text-cyan-200">-- ppm</span></div>
+            <div>NTU: <span id="l3-ntu" class="font-mono text-cyan-200">--</span></div>
+            <div>Temp: <span id="l3-temp" class="font-mono text-cyan-200">--°C</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Depth Slicer Slider -->
+      <div class="mb-2">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>ĐỘ SÂU QUAN SÁT (Z)</span>
+          <span id="sliderValTxt" class="font-mono text-cyan-300 font-semibold">Tất cả tầng</span>
+        </div>
+        <input type="range" id="depthSlider" min="0" max="2.2" step="0.05" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer" oninput="onDepthSlide(this.value)">
+      </div>
+
+      <!-- U-04: Historical Time Slider Replay -->
+      <div class="mb-3 p-2 rounded-xl bg-slate-900/50 border border-slate-800">
+        <div class="flex justify-between items-center text-[11px] text-slate-400 mb-1">
+          <span class="font-semibold text-amber-300">TUA LỊCH SỬ ĐO</span>
+          <span id="timeSliderLbl" class="font-mono text-cyan-300">Trực tiếp (Live)</span>
+        </div>
+        <input type="range" id="timeSlider" min="0" max="0" step="1" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg cursor-pointer" oninput="onTimeSlide(this.value)">
+        <div class="flex justify-between mt-1">
+          <button onclick="loadHistoryReplay()" class="glass-button text-[10px] px-2 py-0.5 rounded text-cyan-300">🔄 Tải Lịch Sử CSV</button>
+          <button onclick="exitHistoryReplay()" class="glass-button text-[10px] px-2 py-0.5 rounded text-emerald-300">▶ Quay Lại Live</button>
+        </div>
+      </div>
+
+      <!-- Display Toggles -->
+      <div class="space-y-1.5 text-xs text-slate-300">
+        <label class="flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+          <input type="checkbox" id="chkSurface" checked onchange="toggleMesh('surface')" class="rounded">
+          <span>Mặt nước sóng động 3D</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+          <input type="checkbox" id="chkColumns" checked onchange="toggleMesh('columns')" class="rounded">
+          <span>Trụ cột quan trắc 3 tầng (Prisms)</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+          <input type="checkbox" id="chkVolume" checked onchange="toggleMesh('volume')" class="rounded">
+          <span>Mặt cắt nhiệt thể tích (Isosurface)</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+          <input type="checkbox" id="chkBed" checked onchange="toggleMesh('bed')" class="rounded">
+          <span>Lòng hồ / Địa hình đáy</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+          <input type="checkbox" id="chkBuoy" checked onchange="toggleMesh('buoy')" class="rounded">
+          <span>Phao USV & Lồng tời cảm biến</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+          <input type="checkbox" id="chkGrid" checked onchange="toggleMesh('grid')" class="rounded">
+          <span>Lưới toạ độ GPS & Vòng Neo Ảo</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Color Legend Gradient Bar -->
+    <div class="pt-2 border-t border-slate-700/60">
+      <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+        <span id="legMinTxt">0 (Kém B2)</span>
+        <span id="legParamTitle" class="font-semibold text-cyan-300">VN-WQI (QCVN 08)</span>
+        <span id="legMaxTxt">100 (Tốt A1)</span>
+      </div>
+      <div id="legendGradient" class="h-2.5 w-full rounded-full" style="background: linear-gradient(to right, #991b1b, #e74c3c, #f1c40f, #2ecc71, #06b6d4);"></div>
+      <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+        <span>B2 (&lt;50)</span>
+        <span>B1 (50-74)</span>
+        <span>A2 (75-89)</span>
+        <span>A1 (≥90)</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Floating HUD: Real-time Buoy Metrics & GPS -->
+  <aside class="absolute right-3 top-20 w-72 glass-card p-3.5 rounded-2xl pointer-events-auto shadow-2xl z-10 space-y-3">
+    <div class="flex items-center justify-between pb-1.5 border-b border-slate-700/60">
+      <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        SỐ LIỆU PHAO THỜI GIAN THỰC
+      </span>
+      <span id="hudSeq" class="text-[11px] font-mono text-slate-400">#---</span>
+    </div>
+
+    <!-- Main Gauge Metric -->
+    <div class="flex items-baseline justify-between bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase" id="mainParamLabel">CHẤT LƯỢNG NƯỚC VN-WQI</div>
+        <div class="text-3xl font-black text-cyan-300 font-mono tracking-tight" id="mainParamVal">--</div>
+      </div>
+      <div class="text-right">
+        <div id="wqiStatusBadge" class="text-xs font-bold px-2 py-0.5 rounded bg-slate-900/60 text-slate-400 border border-slate-700">CHỜ DỮ LIỆU</div>
+        <div class="text-[10px] text-slate-400 mt-0.5" id="wqiDesc">Đang kết nối LoRa/Wi-Fi...</div>
+      </div>
+    </div>
+
+    <!-- Sensor 4-Grid (H-10: Ghi chú rõ DO Ước tính theo nhiệt độ & EC Quy đổi từ TDS) -->
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <div class="p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+        <div class="text-[10px] text-slate-400">ĐỘ pH (GPIO 7)</div>
+        <div class="text-base font-bold font-mono text-slate-100" id="hudPH">--</div>
+        <div class="text-[10px] text-slate-400" id="hudPhStatus">Chờ dữ liệu phao</div>
+      </div>
+      <div class="p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+        <div class="text-[10px] text-slate-400">KHOÁNG TDS (GPIO 4)</div>
+        <div class="text-base font-bold font-mono text-cyan-300"><span id="hudTDS">--</span> <span class="text-[10px] text-slate-400 font-normal">ppm</span></div>
+        <div class="text-[10px] text-emerald-400">EC (Quy đổi): <span id="hudEC">--</span> µS/cm</div>
+      </div>
+      <div class="p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+        <div class="text-[10px] text-slate-400">ĐỘ ĐỤC (GPIO 5)</div>
+        <div class="text-base font-bold font-mono text-amber-300"><span id="hudNTU">--</span> <span class="text-[10px] text-slate-400 font-normal">NTU</span></div>
+        <div class="text-[10px] text-slate-400" id="hudNtuStatus">Chờ dữ liệu</div>
+      </div>
+      <div class="p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+        <div class="text-[10px] text-slate-400">NHIỆT NƯỚC (GPIO 6)</div>
+        <div class="text-base font-bold font-mono text-slate-100"><span id="hudTemp">--</span> <span class="text-[10px] text-slate-400 font-normal">°C</span></div>
+        <div class="text-[10px] text-sky-400">DO (Ước tính): <span id="hudDO">--</span> mg/L</div>
+      </div>
+    </div>
+
+    <!-- Buoy System Power & Navigation Status -->
+    <div class="space-y-1.5 text-xs pt-1 border-t border-slate-700/60 font-mono text-slate-300">
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Điện áp Pin 3S:</span>
+        <span class="text-emerald-400 font-bold" id="hudBat">--V (--%)</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Dòng ACS712:</span>
+        <span class="text-amber-300" id="hudAmp">--A • --W</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Độ sâu lồng tời:</span>
+        <span class="text-cyan-300 font-bold" id="hudDepth">--m</span>
+      </div>
+      <div class="flex justify-between items-center text-[10px]">
+        <span class="text-slate-500">Nguồn đo độ sâu:</span>
+        <span class="text-sky-400 font-medium" id="hudDepthMode">Ước tính tời CT1-CT2</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Công tắc hành trình:</span>
+        <span class="font-mono text-xs" id="hudLimitSw">CT1 (Bùn): 0 • CT2 (Gốc): 0</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Góc nghiêng (MPU):</span>
+        <span class="text-slate-300" id="hudImu">R: --° • P: --° • H: --°</span>
+      </div>
+      <div class="flex justify-between items-center text-[11px]">
+        <span class="text-slate-400">GPS NEO-6M:</span>
+        <span class="text-cyan-400" id="hudGps">Chờ Fix GPS...</span>
+      </div>
+      <div class="flex justify-between items-center text-[10px] text-slate-400">
+        <span>Vận tốc / Khoảng cách Home:</span>
+        <span class="text-slate-200" id="hudNavDist">0.0 km/h • 0.0m</span>
+      </div>
+      <div class="flex justify-between items-center text-[10px] text-slate-400">
+        <span>Nhiệt độ Chip ESP32:</span>
+        <span class="text-slate-300" id="hudChipTemp">S3: --°C • GCS: --°C</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Neo Ảo (DP):</span>
+        <span class="text-emerald-400 font-bold" id="hudAnchor">--</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Sóng LoRa 433:</span>
+        <span class="text-emerald-400" id="hudLora">-- dBm (SNR --dB)</span>
+      </div>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="grid grid-cols-2 gap-1.5 pt-1">
+      <button onclick="triggerBuoyAction('auto')" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-cyan-300">ĐO 3 TẦNG</button>
+      <button onclick="triggerBuoyAction('winch_home')" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-amber-300">THU TỜI 0m</button>
+      <button onclick="triggerBuoyAction('anchor_toggle')" id="btnAnchorAct" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-sky-300">NEO ẢO: BẬT</button>
+      <button onclick="triggerBuoyAction('goto_home')" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-emerald-300">VỀ HOME GPS</button>
+      <button onclick="triggerBuoyAction('clean')" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-purple-300">SỤC RỬA ĐẦU DÒ</button>
+      <button onclick="triggerBuoyAction('sample')" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-emerald-300">LẤY MẪU NƯỚC</button>
+      <button onclick="triggerBuoyAction('stop_all')" class="glass-button text-xs py-1.5 rounded-lg font-semibold text-rose-400 col-span-2">DỪNG KHẨN CẤP TOÀN BỘ</button>
+    </div>
+
+    <!-- Breakthrough Features: Chẩn đoán linh kiện thực & AI Co-Pilot Advisor -->
+    <div class="pt-2 border-t border-slate-700/60 space-y-2">
+      <button onclick="openHardwareModal()" class="w-full glass-button text-xs py-1.5 rounded-lg font-semibold text-cyan-300 flex items-center justify-center gap-1.5">
+        🛠️ CHẨN ĐOÁN 11 LINH KIỆN & CÔNG TẮC
+      </button>
+      <div class="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-xs">
+        <div class="flex items-center justify-between mb-1">
+          <span class="font-bold text-cyan-300 flex items-center gap-1">
+            <span>✨ AI CO-PILOT</span>
+            <span class="text-[9px] px-1 py-0.2 rounded bg-cyan-900 text-cyan-200">QCVN 08</span>
+          </span>
+          <button onclick="consultAiAdvisor()" class="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer">Tham vấn AI</button>
+        </div>
+        <div id="aiCoPilotRisk" class="text-[11px] font-bold text-emerald-400 mb-1">Đang giám sát thời gian thực...</div>
+        <div id="aiCoPilotDiag" class="text-[10px] text-slate-300 leading-tight">Hệ thống AI đang đối soát các chỉ số với chuẩn QCVN 08:2023/BTNMT...</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Toolbar: 3D Camera Controls & Projection Views -->
+  <footer class="absolute bottom-3 left-1/2 -translate-x-1/2 glass-card px-4 py-2 rounded-2xl pointer-events-auto flex items-center gap-2 shadow-2xl z-10 flex-wrap justify-center">
+    <div class="flex items-center gap-1 border-r border-slate-700/60 pr-2">
+      <span class="text-[11px] text-slate-400 mr-1 font-semibold uppercase">GÓC NHÌN:</span>
+      <button onclick="setCameraView('iso')" id="cam-iso" class="glass-button active px-2.5 py-1 text-xs rounded-lg font-semibold">Phối cảnh 3D</button>
+      <button onclick="setCameraView('top')" id="cam-top" class="glass-button px-2.5 py-1 text-xs rounded-lg font-semibold">Nhìn từ trên</button>
+      <button onclick="setCameraView('side')" id="cam-side" class="glass-button px-2.5 py-1 text-xs rounded-lg font-semibold">Mặt cắt ngang</button>
+      <button onclick="setCameraView('buoy')" id="cam-buoy" class="glass-button px-2.5 py-1 text-xs rounded-lg font-semibold">Bám theo Phao</button>
+    </div>
+
+    <div class="flex items-center gap-1.5 pl-1 flex-wrap">
+      <button onclick="toggleAutoRotate()" id="btnRotate" class="glass-button px-2.5 py-1 text-xs rounded-lg">Xoay 360°: Tắt</button>
+      <button onclick="resetCamera()" class="glass-button px-2.5 py-1 text-xs rounded-lg">Căn giữa</button>
+      <button onclick="exportSnapshot()" class="glass-button px-2.5 py-1 text-xs rounded-lg text-cyan-300 flex items-center gap-1">
+        📷 Lưu ảnh 3D
+      </button>
+      <button onclick="exportSurveyCsv()" class="glass-button px-2.5 py-1 text-xs rounded-lg text-emerald-300 flex items-center gap-1">
+        📥 Xuất CSV (<span id="surveyCount">0 điểm</span>)
+      </button>
+      <button onclick="exportSurveyGpx()" class="glass-button px-2.5 py-1 text-xs rounded-lg text-amber-300 flex items-center gap-1">
+        🗺️ Xuất GPX (GIS)
+      </button>
+      <button onclick="openDepthProfileModal()" class="glass-button px-2.5 py-1 text-xs rounded-lg text-cyan-300 flex items-center gap-1">
+        📊 Mặt Cắt Tầng Nước
+      </button>
+      <button onclick="toggleWaypointMode()" id="btnWp" class="glass-button px-2.5 py-1 text-xs rounded-lg text-amber-300 flex items-center gap-1">
+        📍 Lập Lộ Trình (<span id="wpCount">0</span>)
+      </button>
+      <button onclick="toggleVoiceAlert()" id="btnVoice" class="glass-button px-2.5 py-1 text-xs rounded-lg text-sky-300 flex items-center gap-1">
+        🔊 Giọng Nói: BẬT
+      </button>
+      <button onclick="generatePrintReport()" class="glass-button px-2.5 py-1 text-xs rounded-lg text-purple-300 flex items-center gap-1">
+        🖨️ In Báo Cáo
+      </button>
+    </div>
+  </footer>
+
+  <!-- Waypoint Mission Planner Toolbar -->
+  <div id="wpToolbar" class="hidden absolute bottom-16 left-1/2 -translate-x-1/2 glass-card px-4 py-2 rounded-xl shadow-2xl z-20 flex items-center gap-3 border border-amber-400/50">
+    <span class="text-xs font-bold text-amber-300 flex items-center gap-1">
+      <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+      CHẾ ĐỘ ĐẶT TỌA ĐỘ HẢI TRÌNH (Click chuột lên mặt nước để thả điểm)
+    </span>
+    <button onclick="sendMissionToBuoy()" class="glass-button px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-black">🚀 GỬI HẢI TRÌNH</button>
+    <button onclick="clearWaypoints()" class="glass-button px-2.5 py-1 text-xs rounded-lg text-red-400">❌ XÓA TẤT CẢ</button>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- ENGINE ĐỒ HOẠ 3D WEBGL CHUYÊN DỤNG (100% OFFLINE - TƯƠNG THÍCH MỌI GPU)    -->
+  <!-- ========================================================================= -->
+  <script>
+    // --- 1. BIẾN TRẠNG THÁI TOÀN CỤC (U-01: Khởi tạo sạch 100%, không nạp sẵn dữ liệu giả) ---
+    let currentParam = 'wqi';
+    let isLiveMode   = true;
+    let isHistoryReplay = false;
+    let historyRecords = [];
+    let autoRotate   = false;
+    let followBuoyMode = false;
+    let visibleMeshes = { surface: true, columns: true, volume: true, bed: true, buoy: true, grid: true };
+    let sliceDepthFilter = 0;
+
+    // Dữ liệu đo 3 tầng nước chuẩn QCVN 08:2023/BTNMT (chỉ hiển thị khi nhận được dữ liệu thật từ Phao)
+    let profileData = {
+      surface: { depth: 0.3, ph: 0.0, tds: 0, ntu: 0, temp: 0.0, do: 0.0, wqi: null, valid: false },
+      middle:  { depth: 1.0, ph: 0.0, tds: 0, ntu: 0, temp: 0.0, do: 0.0, wqi: null, valid: false },
+      bottom:  { depth: 1.8, ph: 0.0, tds: 0, ntu: 0, temp: 0.0, do: 0.0, wqi: null, valid: false }
+    };
+
+    // Dữ liệu đo tức thời (Live Telemetry) — Khởi tạo hasTelemetry = false cho tới khi nhận gói thật
+    let hasTelemetry = false;
+    let liveData = {
+      seq: 0, ph: 0.0, tds: 0, ec: 0, ntu: 0, temp: 0.0, do: 0.0, wqi: null,
+      bat: 0.0, batpct: 0, amp: 0.0, depth: 0.0, roll: 0.0, pitch: 0.0, hdg: 0,
+      lat: 0.0, lng: 0.0, rssi: 0, snr: 0.0, hwm: 0, adf: 0, ct1: 0, ct2: 0,
+      port: 'AUTO', posX: 0.0, posZ: 0.0, gpsFix: false
+    };
+
+    // --- BƯỚC A: THUẬT TOÁN QUY ĐỔI GPS THỰC TẾ SANG METERS 3D ---
+    let homeAnchorGps = null;
+    function updateBuoy3DCoordinatesFromGPS(lat, lng) {
+      if (Math.abs(lat) < 0.001 || Math.abs(lng) < 0.001) return;
+      if (!homeAnchorGps) {
+        homeAnchorGps = { lat: lat, lng: lng };
+      }
+      const R = 6378137.0; // Bán kính Trái Đất (mét)
+      const dLat = (lat - homeAnchorGps.lat) * (Math.PI / 180.0);
+      const dLng = (lng - homeAnchorGps.lng) * (Math.PI / 180.0);
+      const meanLat = ((lat + homeAnchorGps.lat) / 2.0) * (Math.PI / 180.0);
+      const xMeters = dLng * Math.cos(meanLat) * R;
+      const zMeters = -dLat * R; // Hướng Bắc là -Z trong WebGL
+      liveData.posX = xMeters * 0.6;
+      liveData.posZ = zMeters * 0.6;
+    }
+
+    // Mảng lưu vết lộ trình khảo sát đo 3 tầng thực tế
+    let realSurveyTrail = [];
+    function recordCurrentWaterColumn() {
+      if (!liveData.gpsFix || liveData.seq === 0) return;
+      if (realSurveyTrail.length > 0) {
+        const last = realSurveyTrail[realSurveyTrail.length - 1];
+        if (Math.hypot(liveData.posX - last.x, liveData.posZ - last.z) < 0.8) return;
+      }
+      realSurveyTrail.push({
+        x: liveData.posX,
+        z: liveData.posZ,
+        s: { ...profileData.surface },
+        m: { ...profileData.middle },
+        b: { ...profileData.bottom }
+      });
+      if (realSurveyTrail.length > 30) realSurveyTrail.shift();
+    }
+
+    // Mạng lưới 5 Trụ Cột mẫu dự phòng cho chế độ Mô Phỏng (Demo)
+    const stationColumns = [
+      { id: "ST01", x: -7.5, z: -6.5, name: "Trạm Thượng Lưu A",
+        s: { wqi: 91, ph: 7.45, tds: 190, ntu: 10, temp: 28.8, do: 7.2 },
+        m: { wqi: 84, ph: 7.30, tds: 230, ntu: 22, temp: 28.2, do: 6.5 },
+        b: { wqi: 72, ph: 7.05, tds: 310, ntu: 55, temp: 27.5, do: 5.4 } },
+      { id: "ST02", x:  0.0, z: -6.5, name: "Trạm Giữa Hồ B",
+        s: { wqi: 86, ph: 7.38, tds: 240, ntu: 16, temp: 29.0, do: 6.8 },
+        m: { wqi: 76, ph: 7.15, tds: 295, ntu: 35, temp: 28.4, do: 5.9 },
+        b: { wqi: 58, ph: 6.90, tds: 390, ntu: 95, temp: 27.6, do: 4.9 } },
+      { id: "ST03", x:  7.0, z: -4.5, name: "Khu Vực Cửa Xả C (Cảnh báo KL nặng)",
+        s: { wqi: 64, ph: 6.65, tds: 420, ntu: 65, temp: 29.8, do: 5.1 },
+        m: { wqi: 42, ph: 6.15, tds: 680, ntu: 160, temp: 29.2, do: 3.8 },
+        b: { wqi: 24, ph: 5.40, tds: 950, ntu: 290, temp: 28.5, do: 2.4 } },
+      { id: "ST04", x: -6.5, z:  5.0, name: "Bến Phao Tây D",
+        s: { wqi: 89, ph: 7.40, tds: 210, ntu: 12, temp: 28.9, do: 7.0 },
+        m: { wqi: 81, ph: 7.25, tds: 260, ntu: 28, temp: 28.3, do: 6.2 },
+        b: { wqi: 68, ph: 7.00, tds: 340, ntu: 68, temp: 27.7, do: 5.1 } },
+      { id: "ST05", x:  5.5, z:  6.0, name: "Vùng Bùn Đáy Sâu E",
+        s: { wqi: 78, ph: 7.20, tds: 290, ntu: 25, temp: 29.3, do: 6.1 },
+        m: { wqi: 62, ph: 6.85, tds: 410, ntu: 75, temp: 28.6, do: 5.0 },
+        b: { wqi: 34, ph: 6.10, tds: 720, ntu: 220, temp: 27.9, do: 3.2 } }
+    ];
+
+    const numOr = (v, fallback) => (typeof v === 'number' && isFinite(v)) ? v : fallback;
+
+    // --- 2. HỆ THỐNG TOÁN HỌC 3D (VECTOR, MATRIX, CAMERA) ---
+    const M4 = {
+      create: () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+      perspective: (out, fovy, aspect, near, far) => {
+        const f = 1.0 / Math.tan(fovy / 2);
+        const nf = 1 / (near - far);
+        out[0] = f / aspect; out[1] = 0; out[2] = 0; out[3] = 0;
+        out[4] = 0; out[5] = f; out[6] = 0; out[7] = 0;
+        out[8] = 0; out[9] = 0; out[10] = (far + near) * nf; out[11] = -1;
+        out[12] = 0; out[13] = 0; out[14] = (2 * far * near) * nf; out[15] = 0;
+        return out;
+      },
+      lookAt: (out, eye, center, up) => {
+        let x0, x1, x2, y0, y1, y2, z0, z1, z2, len;
+        let eyex = eye[0], eyey = eye[1], eyez = eye[2];
+        let upx = up[0], upy = up[1], upz = up[2];
+        let centerx = center[0], centery = center[1], centerz = center[2];
+
+        z0 = eyex - centerx; z1 = eyey - centery; z2 = eyez - centerz;
+        len = Math.hypot(z0, z1, z2);
+        if (len < 1e-5) { z2 = 1.0; len = 1.0; } else { len = 1.0 / len; z0 *= len; z1 *= len; z2 *= len; }
+
+        x0 = upy * z2 - upz * z1;
+        x1 = upz * z0 - upx * z2;
+        x2 = upx * z1 - upy * z0;
+        len = Math.hypot(x0, x1, x2);
+        if (len < 1e-5) { x0 = 1.0; len = 1.0; } else { len = 1.0 / len; x0 *= len; x1 *= len; x2 *= len; }
+
+        y0 = z1 * x2 - z2 * x1;
+        y1 = z2 * x0 - z0 * x2;
+        y2 = z0 * x1 - z1 * x0;
+        len = Math.hypot(y0, y1, y2);
+        if (len > 1e-5) { len = 1.0 / len; y0 *= len; y1 *= len; y2 *= len; }
+
+        out[0] = x0; out[1] = y0; out[2] = z0; out[3] = 0;
+        out[4] = x1; out[5] = y1; out[6] = z1; out[7] = 0;
+        out[8] = x2; out[9] = y2; out[10] = z2; out[11] = 0;
+        out[12] = -(x0 * eyex + x1 * eyey + x2 * eyez);
+        out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
+        out[14] = -(z0 * eyex + z1 * eyey + z2 * eyez);
+        out[15] = 1;
+        return out;
+      },
+      multiply: (out, a, b) => {
+        let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
+        let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
+        let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
+        let a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+
+        let b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+        out[0] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+        out[1] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+        out[2] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+        out[3] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+        b0 = b[4]; b1 = b[5]; b2 = b[6]; b3 = b[7];
+        out[4] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+        out[5] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+        out[6] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+        out[7] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+        b0 = b[8]; b1 = b[9]; b2 = b[10]; b3 = b[11];
+        out[8] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+        out[9] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+        out[10] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+        out[11] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+        b0 = b[12]; b1 = b[13]; b2 = b[14]; b3 = b[15];
+        out[12] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+        out[13] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+        out[14] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+        out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+        return out;
+      }
+    };
+
+    // Camera Orbit State
+    let camera = {
+      radius: 25.0,
+      theta: 0.72,
+      phi: 1.02,
+      target: [0, -0.7, 0]
+    };
+
+    // --- 3. KHỞI TẠO WEBGL CONTEXT & SHADERS (CHUẨN GLSL ES 1.00 KHÔNG LỖI ANGLE) ---
+    const canvas = document.getElementById('glCanvas');
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: true }) ||
+               canvas.getContext('experimental-webgl', { antialias: true, alpha: false, preserveDrawingBuffer: true });
+
+    if (!gl) {
+      alert("Trình duyệt không hỗ trợ WebGL. Vui lòng bật tăng tốc phần cứng!");
+    }
+
+    // Chú ý quan trọng: Khai báo đồng nhất precision mediump float & uniform float uIsWater
+    // ở cả Vertex Shader và Fragment Shader để tuyệt đối không bị lỗi Link Program trên Windows ANGLE!
+    const vsSource = `
+      precision mediump float;
+      precision mediump int;
+
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      attribute vec4 aColor;
+
+      uniform mat4 uMatrix;
+      uniform float uTime;
+      uniform float uIsWater;
+
+      varying vec3 vNormal;
+      varying vec4 vColor;
+      varying vec3 vPosition;
+
+      void main() {
+        vec3 pos = aPosition;
+        if (uIsWater > 0.5) {
+          float wave1 = sin(pos.x * 0.7 + uTime * 1.8) * cos(pos.z * 0.7 + uTime * 1.3) * 0.10;
+          float wave2 = sin(pos.x * 1.4 - uTime * 2.2) * 0.04;
+          pos.y += wave1 + wave2;
+        }
+        vPosition = pos;
+        vNormal = aNormal;
+        vColor = aColor;
+        gl_Position = uMatrix * vec4(pos, 1.0);
+        gl_PointSize = 10.0;
+      }
+    `;
+
+    const fsSource = `
+      precision mediump float;
+      precision mediump int;
+
+      varying vec3 vNormal;
+      varying vec4 vColor;
+      varying vec3 vPosition;
+
+      uniform vec3 uLightDir;
+      uniform float uIsWater;
+
+      void main() {
+        vec3 norm = normalize(vNormal);
+        float diff = max(dot(norm, normalize(uLightDir)), 0.42);
+
+        vec4 col = vColor;
+        if (uIsWater > 0.5) {
+          vec3 viewDir = normalize(vec3(0.0, 12.0, 22.0) - vPosition);
+          vec3 halfDir = normalize(normalize(uLightDir) + viewDir);
+          float spec = pow(max(dot(norm, halfDir), 0.0), 28.0);
+          col.rgb = mix(col.rgb * diff + vec3(spec * 0.5), vec3(0.12, 0.72, 0.95), 0.35);
+          col.a = vColor.a;
+        } else {
+          col.rgb = col.rgb * (0.35 + 0.65 * diff);
+        }
+        gl_FragColor = col;
+      }
+    `;
+
+    function createShader(glCtx, type, source) {
+      const shader = glCtx.createShader(type);
+      glCtx.shaderSource(shader, source);
+      glCtx.compileShader(shader);
+      if (!glCtx.getShaderParameter(shader, glCtx.COMPILE_STATUS)) {
+        console.error("Shader compile error:", glCtx.getShaderInfoLog(shader));
+        glCtx.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    const program = gl.createProgram();
+    gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error("WebGL Program Link Error:", gl.getProgramInfoLog(program));
+    }
+    gl.useProgram(program);
+
+    const loc_aPosition = gl.getAttribLocation(program, 'aPosition');
+    const loc_aNormal   = gl.getAttribLocation(program, 'aNormal');
+    const loc_aColor    = gl.getAttribLocation(program, 'aColor');
+    const loc_uMatrix   = gl.getUniformLocation(program, 'uMatrix');
+    const loc_uTime     = gl.getUniformLocation(program, 'uTime');
+    const loc_uIsWater  = gl.getUniformLocation(program, 'uIsWater');
+    const loc_uLightDir = gl.getUniformLocation(program, 'uLightDir');
+
+    // --- 4. BẢNG PHÂN LOẠI MÀU SẮC CHUẨN QCVN 08:2023/BTNMT ---
+    function getColorForValue(param, val) {
+      // Nếu cảm biến chưa cắm (val <= 0), hiển thị màu xanh ngọc trung tính
+      if (!isFinite(val) || val <= 0.01) {
+        return [0.18, 0.80, 0.44, 1.0]; // #2ECC71 Emerald Safe
+      }
+      let r = 0.18, g = 0.80, b = 0.44;
+      if (param === 'wqi') {
+        if (val < 30)      { r = 0.60; g = 0.11; b = 0.11; } // #991B1B Đỏ sẫm (Nguy hại / KL nặng)
+        else if (val < 50) { r = 0.91; g = 0.30; b = 0.24; } // #E74C3C Đỏ cam (Ô nhiễm nặng)
+        else if (val < 75) { r = 0.95; g = 0.77; b = 0.06; } // #F1C40F Vàng hổ phách (Cảnh báo B1)
+        else               { r = 0.18; g = 0.80; b = 0.44; } // #2ECC71 Xanh lục bảo (An toàn A1/A2)
+      } else if (param === 'ph') {
+        if (val < 5.5 || val > 9.0)      { r = 0.60; g = 0.11; b = 0.11; }
+        else if (val < 6.0 || val > 8.5) { r = 0.91; g = 0.30; b = 0.24; }
+        else if (val < 6.5 || val > 8.2) { r = 0.95; g = 0.77; b = 0.06; }
+        else                             { r = 0.18; g = 0.80; b = 0.44; }
+      } else if (param === 'tds') {
+        if (val > 800)      { r = 0.60; g = 0.11; b = 0.11; }
+        else if (val > 500) { r = 0.91; g = 0.30; b = 0.24; }
+        else if (val > 300) { r = 0.95; g = 0.77; b = 0.06; }
+        else                { r = 0.18; g = 0.80; b = 0.44; }
+      } else if (param === 'ntu') {
+        if (val > 200)     { r = 0.60; g = 0.11; b = 0.11; }
+        else if (val > 90) { r = 0.91; g = 0.30; b = 0.24; }
+        else if (val > 30) { r = 0.95; g = 0.77; b = 0.06; }
+        else               { r = 0.18; g = 0.80; b = 0.44; }
+      } else if (param === 'temp') {
+        let t = Math.max(0, Math.min(1, (val - 22) / 12));
+        r = 0.15 + 0.8 * t; g = 0.75 * (1 - Math.abs(t - 0.45)); b = 0.95 * (1 - t);
+      } else { // DO
+        if (val < 3.0)      { r = 0.60; g = 0.11; b = 0.11; }
+        else if (val < 4.5) { r = 0.91; g = 0.30; b = 0.24; }
+        else if (val < 6.0) { r = 0.95; g = 0.77; b = 0.06; }
+        else                { r = 0.18; g = 0.80; b = 0.44; }
+      }
+      return [r, g, b, 1.0];
+    }
+
+    // Quản lý Buffer WebGL thông minh (Tái sử dụng Buffer, chống rò rỉ VRAM)
+    function updateOrCreateMesh(existingMesh, verts, norms, cols, inds) {
+      const m = existingMesh || {
+        vbo: gl.createBuffer(),
+        nbo: gl.createBuffer(),
+        cbo: gl.createBuffer(),
+        ibo: gl.createBuffer(),
+        count: 0
+      };
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.DYNAMIC_DRAW);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.nbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(norms), gl.DYNAMIC_DRAW);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.cbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cols), gl.DYNAMIC_DRAW);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ibo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(inds), gl.DYNAMIC_DRAW);
+
+      m.count = inds.length;
+      return m;
+    }
+
+    const GRID_SIZE = 24, SPAN = 22;
+
+    // A. Lòng hồ / Địa hình đáy (Bathymetry Mesh) + Lưới địa hình đáy rõ nét
+    let bedVertices = [], bedNormals = [], bedColors = [], bedIndices = [];
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      for (let j = 0; j <= GRID_SIZE; j++) {
+        let x = (i / GRID_SIZE - 0.5) * SPAN;
+        let z = (j / GRID_SIZE - 0.5) * SPAN;
+        let dist = Math.hypot(x, z);
+        let depth = -2.25 + Math.min(1.65, Math.pow(dist / 10.5, 2.0)) - Math.sin(x * 0.45) * 0.12;
+
+        bedVertices.push(x, depth, z);
+        bedNormals.push(0, 1, 0);
+        let c = Math.max(0.15, Math.min(0.65, (depth + 2.4) * 0.32));
+        bedColors.push(0.14 + c * 0.25, 0.24 + c * 0.35, 0.34 + c * 0.40, 1.0);
+      }
+    }
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        let a = i * (GRID_SIZE + 1) + j;
+        let b = a + 1;
+        let c = (i + 1) * (GRID_SIZE + 1) + j;
+        let d = c + 1;
+        bedIndices.push(a, b, c, b, d, c);
+      }
+    }
+    let bedMesh = updateOrCreateMesh(null, bedVertices, bedNormals, bedColors, bedIndices);
+
+    // B. Mặt nước động 3D (Water Surface Mesh)
+    let surfMesh = null;
+    function buildSurfMesh() {
+      let surfVertices = [], surfNormals = [], surfColors = [], surfIndices = [];
+      let activeVal = (liveData[currentParam] !== null && liveData[currentParam] > 0) ? liveData[currentParam] : (profileData.surface[currentParam] || 0);
+      let baseCol = getColorForValue(currentParam, activeVal);
+      let r = 0.04 * 0.45 + baseCol[0] * 0.55;
+      let g = 0.55 * 0.45 + baseCol[1] * 0.55;
+      let b = 0.85 * 0.45 + baseCol[2] * 0.55;
+      for (let i = 0; i <= GRID_SIZE; i++) {
+        for (let j = 0; j <= GRID_SIZE; j++) {
+          let x = (i / GRID_SIZE - 0.5) * SPAN;
+          let z = (j / GRID_SIZE - 0.5) * SPAN;
+          surfVertices.push(x, 0.0, z);
+          surfNormals.push(0, 1, 0);
+          surfColors.push(r, g, b, 0.62);
+        }
+      }
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          let a = i * (GRID_SIZE + 1) + j;
+          let b = a + 1;
+          let c = (i + 1) * (GRID_SIZE + 1) + j;
+          let d = c + 1;
+          surfIndices.push(a, b, c, b, d, c);
+        }
+      }
+      surfMesh = updateOrCreateMesh(surfMesh, surfVertices, surfNormals, surfColors, surfIndices);
+    }
+    buildSurfMesh();
+
+    // C. 3 Tầng nước Mặt cắt Thể tích Không gian (IDW Spatial Heatmap Slices)
+    let sliceMesh = null;
+    function buildSlicePlanes() {
+      let sliceVertices = [], sliceNormals = [], sliceColors = [], sliceIndices = [];
+      const layers = [
+        { d: -0.35, key: 's', data: profileData.surface },
+        { d: -1.05, key: 'm', data: profileData.middle },
+        { d: -1.80, key: 'b', data: profileData.bottom }
+      ];
+
+      const SLICE_GRID = 12;
+      let vOffset = 0;
+      layers.forEach((l, idx) => {
+        if (sliceDepthFilter > 0 && Math.abs(-l.d - sliceDepthFilter) > 0.4) return;
+        let spanL = 18.5 - idx * 2.2;
+
+        for (let i = 0; i <= SLICE_GRID; i++) {
+          for (let j = 0; j <= SLICE_GRID; j++) {
+            let x = (i / SLICE_GRID - 0.5) * spanL;
+            let z = (j / SLICE_GRID - 0.5) * spanL;
+
+            // Nội suy không gian IDW (Inverse Distance Weighting)
+            let num = 0, den = 0;
+            let dBuoy = Math.hypot(x - (liveData.posX || 0), z - (liveData.posZ || 0)) + 0.5;
+            let wBuoy = 1.0 / (dBuoy * dBuoy);
+            let buoyVal = (l.data[currentParam] !== null && l.data[currentParam] > 0) ? l.data[currentParam] : (liveData[currentParam] || 0);
+            if (buoyVal > 0) {
+              num += buoyVal * wBuoy;
+              den += wBuoy;
+            }
+
+            if (!isLiveMode) {
+              for (let st of stationColumns) {
+                let dst = Math.hypot(x - st.x, z - st.z) + 0.5;
+                let wst = 1.0 / (dst * dst);
+                let stVal = st[l.key][currentParam] || 75;
+                num += stVal * wst;
+                den += wst;
+              }
+            }
+            let interpVal = den > 0 ? (num / den) : buoyVal;
+            let col = getColorForValue(currentParam, interpVal);
+
+            sliceVertices.push(x, l.d, z);
+            sliceNormals.push(0, 1, 0);
+            sliceColors.push(col[0], col[1], col[2], 0.52);
+          }
+        }
+        for (let i = 0; i < SLICE_GRID; i++) {
+          for (let j = 0; j < SLICE_GRID; j++) {
+            let a = vOffset + i * (SLICE_GRID + 1) + j;
+            let b = a + 1;
+            let c = vOffset + (i + 1) * (SLICE_GRID + 1) + j;
+            let d = c + 1;
+            sliceIndices.push(a, b, c, b, d, c);
+          }
+        }
+        vOffset += (SLICE_GRID + 1) * (SLICE_GRID + 1);
+      });
+      sliceMesh = updateOrCreateMesh(sliceMesh, sliceVertices, sliceNormals, sliceColors, sliceIndices);
+    }
+    buildSlicePlanes();
+
+    // D. Trụ Cột Quan Trắc Đa Tầng 3D (3D Multi-Layer Water Column Prisms)
+    let columnsMesh = null;
+    function buildWaterColumnsMesh() {
+      let verts = [], norms = [], cols = [], inds = [];
+
+      const addCylinderSegment = (cx, cz, yTop, yBot, radius, r, g, b, alpha) => {
+        const segs = 10;
+        let start = verts.length / 3;
+        for (let s = 0; s <= segs; s++) {
+          let ang = (s / segs) * Math.PI * 2;
+          let nx = Math.cos(ang), nz = Math.sin(ang);
+          let px = cx + radius * nx, pz = cz + radius * nz;
+          // Top vertex
+          verts.push(px, yTop, pz);
+          norms.push(nx, 0.2, nz);
+          cols.push(r, g, b, alpha);
+          // Bottom vertex
+          verts.push(px, yBot, pz);
+          norms.push(nx, 0.2, nz);
+          cols.push(r * 0.85, g * 0.85, b * 0.85, alpha);
+        }
+        for (let s = 0; s < segs; s++) {
+          let i0 = start + s * 2;
+          let i1 = i0 + 1;
+          let i2 = i0 + 2;
+          let i3 = i0 + 3;
+          inds.push(i0, i1, i2, i1, i3, i2);
+        }
+      };
+
+      // U-02: Ở chế độ Phao Thật (isLiveMode), chỉ vẽ trụ cột tại vị trí Phao thật; ở chế độ Mô Phỏng mới vẽ thêm 5 trạm mẫu
+      const allCols = isLiveMode ? [
+        {
+          id: "BUOY_COL",
+          x: liveData.posX || 0,
+          z: liveData.posZ || 0,
+          s: profileData.surface,
+          m: profileData.middle,
+          b: profileData.bottom,
+          isBuoy: true
+        },
+        ...realSurveyTrail.map((pt, idx) => ({
+          id: "TRAIL_" + idx,
+          x: pt.x,
+          z: pt.z,
+          s: pt.s,
+          m: pt.m,
+          b: pt.b,
+          isBuoy: false
+        }))
+      ] : [
+        ...stationColumns,
+        {
+          id: "BUOY_COL",
+          x: liveData.posX || 0,
+          z: liveData.posZ || 0,
+          s: profileData.surface,
+          m: profileData.middle,
+          b: profileData.bottom,
+          isBuoy: true
+        }
+      ];
+
+      allCols.forEach(st => {
+        let rad = st.isBuoy ? 0.55 : 0.45;
+        let cS = getColorForValue(currentParam, st.s[currentParam]);
+        let cM = getColorForValue(currentParam, st.m[currentParam]);
+        let cB = getColorForValue(currentParam, st.b[currentParam]);
+
+        // Tầng 1: Mặt (0.0m -> -0.6m)
+        addCylinderSegment(st.x, st.z, -0.02, -0.60, rad, cS[0], cS[1], cS[2], 0.88);
+        // Tầng 2: Giữa (-0.62m -> -1.25m)
+        addCylinderSegment(st.x, st.z, -0.62, -1.25, rad, cM[0], cM[1], cM[2], 0.88);
+        // Tầng 3: Đáy (-1.27m -> -1.90m)
+        addCylinderSegment(st.x, st.z, -1.27, -1.90, rad, cB[0], cB[1], cB[2], 0.88);
+      });
+
+      columnsMesh = updateOrCreateMesh(columnsMesh, verts, norms, cols, inds);
+    }
+    buildWaterColumnsMesh();
+
+    // E. Mô hình Phao USV (Catamaran + Tấm pin mặt trời + Lồng tời thả dây + Chùm Sonar 3D)
+    let buoyMesh = null;
+    function buildBuoyMesh(depth) {
+      let buoyVertices = [], buoyNormals = [], buoyColors = [], buoyIndices = [];
+
+      const bx = liveData.posX || 0.0;
+      const bz = liveData.posZ || 0.0;
+      const rollRad  = (liveData.roll  || 0.0) * Math.PI / 180.0;
+      const pitchRad = (liveData.pitch || 0.0) * Math.PI / 180.0;
+      const yawRad   = ((liveData.hdg  || 0.0) - 90.0) * Math.PI / 180.0;
+
+      const cR = Math.cos(rollRad),  sR = Math.sin(rollRad);
+      const cP = Math.cos(pitchRad), sP = Math.sin(pitchRad);
+      const cY = Math.cos(yawRad),   sY = Math.sin(yawRad);
+
+      const transformBody = (lx, ly, lz) => {
+        let x1 = lx * cR - ly * sR;
+        let y1 = lx * sR + ly * cR;
+        let z1 = lz;
+        let x2 = x1;
+        let y2 = y1 * cP - z1 * sP;
+        let z2 = y1 * sP + z1 * cP;
+        let x3 = x2 * cY + z2 * sY;
+        let y3 = y2;
+        let z3 = -x2 * sY + z2 * cY;
+        return [x3 + bx, y3, z3 + bz];
+      };
+
+      const addBox = (cx, cy, cz, w, h, l, r, g, b, isBody = true) => {
+        let x1 = cx - w/2, x2 = cx + w/2;
+        let y1 = cy - h/2, y2 = cy + h/2;
+        let z1 = cz - l/2, z2 = cz + l/2;
+        let rawVerts = [
+          x1,y1,z1,  x2,y1,z1,  x2,y2,z1,  x1,y2,z1,
+          x1,y1,z2,  x2,y1,z2,  x2,y2,z2,  x1,y2,z2
+        ];
+        let start = buoyVertices.length / 3;
+
+        for (let k = 0; k < 8; k++) {
+          let rx = rawVerts[k*3], ry = rawVerts[k*3+1], rz = rawVerts[k*3+2];
+          if (isBody) {
+            let tv = transformBody(rx, ry, rz);
+            buoyVertices.push(tv[0], tv[1], tv[2]);
+          } else {
+            buoyVertices.push(rx, ry, rz);
+          }
+          buoyNormals.push(0, 1, 0);
+          buoyColors.push(r, g, b, 1.0);
+        }
+
+        buoyIndices.push(
+          start, start+1, start+2,  start, start+2, start+3,
+          start+4, start+6, start+5,  start+4, start+7, start+6,
+          start+3, start+2, start+6,  start+3, start+6, start+7,
+          start, start+5, start+1,  start, start+4, start+5,
+          start+1, start+5, start+6,  start+1, start+6, start+2,
+          start, start+3, start+7,  start, start+7, start+4
+        );
+      };
+
+      // 1. Hai thân phao Catamaran khí động học (Đỏ cam nổi bật)
+      addBox(-0.75, 0.08, 0.0, 0.38, 0.28, 2.4, 0.96, 0.28, 0.18, true);
+      addBox( 0.75, 0.08, 0.0, 0.38, 0.28, 2.4, 0.96, 0.28, 0.18, true);
+      // Mũi nhọn vát nước hai thân (Vàng phản quang)
+      addBox(-0.75, 0.12, 1.25, 0.30, 0.22, 0.45, 1.0, 0.85, 0.05, true);
+      addBox( 0.75, 0.12, 1.25, 0.30, 0.22, 0.45, 1.0, 0.85, 0.05, true);
+      // Sàn trung tâm gắn thiết bị
+      addBox(0.0, 0.18, 0.0, 1.35, 0.10, 1.6, 0.22, 0.28, 0.36, true);
+      // Tấm pin Năng lượng Mặt trời PV Mono
+      addBox(0.0, 0.28, 0.0, 1.15, 0.05, 1.25, 0.08, 0.32, 0.68, true);
+      // Cột ăng-ten LoRa 433MHz + Đèn hiệu đỉnh
+      addBox(0.45, 0.75, -0.45, 0.05, 1.0, 0.05, 0.90, 0.92, 0.95, true);
+      addBox(0.45, 1.28, -0.45, 0.12, 0.12, 0.12, 0.0, 1.0, 0.65, true);
+
+      // 2. Cáp tời thẳng đứng theo phương trọng lực
+      let spoolWorld = transformBody(0.0, 0.15, 0.0);
+      let probeDepthZ = -Math.max(0.35, depth);
+      addBox(spoolWorld[0], probeDepthZ / 2, spoolWorld[2], 0.04, Math.abs(probeDepthZ), 0.04, 1.0, 0.92, 0.2, false);
+
+      // 3. Lồng cảm biến đa tầng (Sensor Cage phát sáng theo chất lượng nước)
+      let cageCol = getColorForValue(currentParam, liveData[currentParam] || 86);
+      addBox(spoolWorld[0], probeDepthZ - 0.18, spoolWorld[2], 0.44, 0.34, 0.44, cageCol[0], cageCol[1], cageCol[2], false);
+
+      // 4. Chùm sóng siêu âm Sonar 3D Acoustic Cone
+      const coneR = 0.85;
+      const coneSegments = 12;
+      let startCone = buoyVertices.length / 3;
+      buoyVertices.push(spoolWorld[0], 0.0, spoolWorld[2]);
+      buoyNormals.push(0, 1, 0);
+      buoyColors.push(0.0, 0.95, 0.95, 0.32);
+
+      for (let s = 0; s < coneSegments; s++) {
+        let ang = (s / coneSegments) * Math.PI * 2;
+        let px = spoolWorld[0] + coneR * Math.cos(ang);
+        let pz = spoolWorld[2] + coneR * Math.sin(ang);
+        buoyVertices.push(px, -1.95, pz);
+        buoyNormals.push(0, 1, 0);
+        buoyColors.push(0.0, 0.75, 1.0, 0.16);
+      }
+      for (let s = 0; s < coneSegments; s++) {
+        let nextS = (s + 1) % coneSegments;
+        buoyIndices.push(startCone, startCone + 1 + s, startCone + 1 + nextS);
+      }
+
+      buoyMesh = updateOrCreateMesh(buoyMesh, buoyVertices, buoyNormals, buoyColors, buoyIndices);
+    }
+    buildBuoyMesh(liveData.depth);
+
+    // F. Lưới toạ độ GPS 3D Grid + Vòng tròn bán kính Neo Ảo 1.5m (Dynamic Positioning Ring)
+    let gridMesh = null;
+    function buildGridAndAnchorMesh() {
+      let gridVertices = [], gridNormals = [], gridColors = [], gridIndices = [];
+      for (let x = -SPAN/2; x <= SPAN/2; x += 2.75) {
+        gridVertices.push(x, 0.02, -SPAN/2,  x, 0.02, SPAN/2);
+        gridNormals.push(0,1,0, 0,1,0);
+        gridColors.push(0.22, 0.55, 0.82, 0.42,  0.22, 0.55, 0.82, 0.42);
+        gridIndices.push(gridVertices.length/3 - 2, gridVertices.length/3 - 1);
+      }
+      for (let z = -SPAN/2; z <= SPAN/2; z += 2.75) {
+        gridVertices.push(-SPAN/2, 0.02, z,  SPAN/2, 0.02, z);
+        gridNormals.push(0,1,0, 0,1,0);
+        gridColors.push(0.22, 0.55, 0.82, 0.42,  0.22, 0.55, 0.82, 0.42);
+        gridIndices.push(gridVertices.length/3 - 2, gridVertices.length/3 - 1);
+      }
+
+      // Vòng tròn Neo Ảo 1.5m (xanh ngọc sáng) xung quanh Phao
+      const ringSegs = 32;
+      const ringR = 1.8;
+      const bx = liveData.posX || 0.0;
+      const bz = liveData.posZ || 0.0;
+      for (let s = 0; s < ringSegs; s++) {
+        let a1 = (s / ringSegs) * Math.PI * 2;
+        let a2 = ((s + 1) / ringSegs) * Math.PI * 2;
+        gridVertices.push(bx + ringR * Math.cos(a1), 0.05, bz + ringR * Math.sin(a1));
+        gridVertices.push(bx + ringR * Math.cos(a2), 0.05, bz + ringR * Math.sin(a2));
+        gridNormals.push(0,1,0, 0,1,0);
+        gridColors.push(0.0, 0.96, 0.83, 0.90,  0.0, 0.96, 0.83, 0.90);
+        gridIndices.push(gridVertices.length/3 - 2, gridVertices.length/3 - 1);
+      }
+
+      gridMesh = updateOrCreateMesh(gridMesh, gridVertices, gridNormals, gridColors, gridIndices);
+    }
+    buildGridAndAnchorMesh();
+
+    // --- 5. RENDER LOOP CHÍNH ---
+    let startTime = performance.now();
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    function drawMesh(mesh, isWater, drawMode = gl.TRIANGLES) {
+      if (!mesh || !mesh.count) return;
+      gl.uniform1f(loc_uIsWater, isWater ? 1.0 : 0.0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
+      gl.vertexAttribPointer(loc_aPosition, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(loc_aPosition);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.nbo);
+      gl.vertexAttribPointer(loc_aNormal, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(loc_aNormal);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.cbo);
+      gl.vertexAttribPointer(loc_aColor, 4, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(loc_aColor);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ibo);
+      gl.drawElements(drawMode, mesh.count, gl.UNSIGNED_SHORT, 0);
+    }
+
+    let lastRenderMs = 0;
+    let isTabHidden = false;
+    document.addEventListener('visibilitychange', () => {
+      isTabHidden = document.hidden;
+    });
+
+    function render(nowMs) {
+      if (isTabHidden && (nowMs - lastRenderMs < 200)) {
+        requestAnimationFrame(render);
+        return;
+      }
+      lastRenderMs = nowMs;
+      try {
+        let timeSec = (nowMs - startTime) * 0.001;
+
+        if (autoRotate) {
+          camera.theta += 0.004;
+        }
+        if (followBuoyMode) {
+          camera.target[0] = numOr(liveData.posX, 0.0);
+          camera.target[1] = -0.45;
+          camera.target[2] = numOr(liveData.posZ, 0.0);
+        }
+
+        const displayW = Math.max(64, Math.floor(canvas.clientWidth || window.innerWidth || 1024));
+        const displayH = Math.max(64, Math.floor(canvas.clientHeight || window.innerHeight || 768));
+        if (canvas.width !== displayW || canvas.height !== displayH) {
+          canvas.width = displayW;
+          canvas.height = displayH;
+          gl.viewport(0, 0, displayW, displayH);
+        }
+
+        gl.clearColor(0.015, 0.042, 0.095, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        const aspect = (canvas.height > 0) ? (canvas.width / canvas.height) : 1.33;
+        const pMatrix = M4.create();
+        M4.perspective(pMatrix, Math.PI / 4, aspect, 0.5, 140.0);
+
+        const vMatrix = M4.create();
+        let eyeX = camera.target[0] + camera.radius * Math.sin(camera.phi) * Math.sin(camera.theta);
+        let eyeY = camera.target[1] + camera.radius * Math.cos(camera.phi);
+        let eyeZ = camera.target[2] + camera.radius * Math.sin(camera.phi) * Math.cos(camera.theta);
+        M4.lookAt(vMatrix, [eyeX, eyeY, eyeZ], camera.target, [0, 1, 0]);
+
+        const vpMatrix = M4.create();
+        M4.multiply(vpMatrix, pMatrix, vMatrix);
+
+        gl.useProgram(program);
+        gl.uniformMatrix4fv(loc_uMatrix, false, vpMatrix);
+        gl.uniform1f(loc_uTime, timeSec);
+        gl.uniform3f(loc_uLightDir, 0.55, 1.0, 0.45);
+
+        // 1. Vẽ Lòng hồ (Bathymetry)
+        if (visibleMeshes.bed) {
+          drawMesh(bedMesh, false);
+        }
+
+        // 2. Vẽ Lưới toạ độ GPS & Vòng Neo Ảo (Grid & DP Ring)
+        if (visibleMeshes.grid) {
+          drawMesh(gridMesh, false, gl.LINES);
+        }
+
+        // 3. Vẽ Trụ cột quan trắc đa tầng 3D (Water Column Prisms)
+        if (visibleMeshes.columns) {
+          drawMesh(columnsMesh, false);
+        }
+
+        // 4. Vẽ Mô hình Phao USV & Lồng tời cảm biến
+        if (visibleMeshes.buoy) {
+          drawMesh(buoyMesh, false);
+        }
+
+        // 5. Vẽ Các Mặt Cắt Tầng Nước (Volumetric Slices - Bán trong suốt)
+        if (visibleMeshes.volume) {
+          gl.depthMask(false);
+          drawMesh(sliceMesh, false);
+          gl.depthMask(true);
+        }
+
+        // 6. Vẽ Mặt nước động 3D (Water Surface - Bán trong suốt)
+        if (visibleMeshes.surface) {
+          gl.depthMask(false);
+          drawMesh(surfMesh, true);
+          gl.depthMask(true);
+        }
+      } catch (err) {
+        console.warn("WebGL render error:", err);
+      }
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+
+    // --- 6. XỬ LÝ CHUỘT / CẢM ỨNG XOAY & PHÓNG TO CAMERA 3D ---
+    let isDragging = false;
+    let isPanning = false;
+    let lastMouseX = 0, lastMouseY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 2) isPanning = true;
+      else isDragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      isPanning = false;
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    window.addEventListener('mousemove', (e) => {
+      let dx = e.clientX - lastMouseX;
+      let dy = e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+
+      if (isDragging) {
+        camera.theta -= dx * 0.006;
+        camera.phi   = Math.max(0.12, Math.min(Math.PI / 2 - 0.04, camera.phi - dy * 0.006));
+      } else if (isPanning) {
+        followBuoyMode = false;
+        camera.target[0] -= dx * 0.03;
+        camera.target[2] -= dy * 0.03;
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      camera.radius = Math.max(4.5, Math.min(65.0, camera.radius + e.deltaY * 0.025));
+      e.preventDefault();
+    }, { passive: false });
+
+    let touchDist = 0;
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        touchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      }
+    });
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && isDragging) {
+        let dx = e.touches[0].clientX - lastMouseX;
+        let dy = e.touches[0].clientY - lastMouseY;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+        camera.theta -= dx * 0.007;
+        camera.phi   = Math.max(0.12, Math.min(Math.PI / 2 - 0.04, camera.phi - dy * 0.007));
+      } else if (e.touches.length === 2) {
+        let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        camera.radius = Math.max(4.5, Math.min(65.0, camera.radius - (dist - touchDist) * 0.05));
+        touchDist = dist;
+      }
+    });
+    window.addEventListener('touchend', () => isDragging = false);
+
+    // --- 7. TƯƠNG TÁC GIAO DIỆN & CHỌN THÔNG SỐ (UI CONTROLS) ---
+    function rebuildAllDynamicMeshes() {
+      buildSurfMesh();
+      buildSlicePlanes();
+      buildWaterColumnsMesh();
+      buildBuoyMesh(liveData.depth);
+      buildGridAndAnchorMesh();
+    }
+
+    function setParam(param) {
+      currentParam = param;
+      document.querySelectorAll('header button[id^="btn-"]').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('btn-' + param);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const legTitle = document.getElementById('legParamTitle');
+      const legMin = document.getElementById('legMinTxt');
+      const legMax = document.getElementById('legMaxTxt');
+      const mainLbl = document.getElementById('mainParamLabel');
+      const mainVal = document.getElementById('mainParamVal');
+
+      if (param === 'wqi') {
+        legTitle.innerText = "VN-WQI (QCVN 08)"; legMin.innerText = "0 (Nguy hại)"; legMax.innerText = "100 (Tốt)";
+        mainLbl.innerText = "CHẤT LƯỢNG NƯỚC VN-WQI";
+      } else if (param === 'ph') {
+        legTitle.innerText = "Độ pH"; legMin.innerText = "4.0 (Axit)"; legMax.innerText = "9.0 (Kiềm)";
+        mainLbl.innerText = "ĐỘ pH HIỆN TẠI";
+      } else if (param === 'do') {
+        legTitle.innerText = "Oxy hòa tan DO (mg/L)"; legMin.innerText = "0 mg/L"; legMax.innerText = "10 mg/L";
+        mainLbl.innerText = "OXY HÒA TAN DO";
+      } else if (param === 'tds') {
+        legTitle.innerText = "Tổng khoáng TDS (ppm)"; legMin.innerText = "0 ppm"; legMax.innerText = "1000 ppm";
+        mainLbl.innerText = "TỔNG KHOÁNG TDS";
+      } else if (param === 'ntu') {
+        legTitle.innerText = "Độ đục (NTU)"; legMin.innerText = "0 NTU"; legMax.innerText = "300 NTU";
+        mainLbl.innerText = "ĐỘ ĐỤC NTU";
+      } else if (param === 'temp') {
+        legTitle.innerText = "Nhiệt độ nước (°C)"; legMin.innerText = "20°C"; legMax.innerText = "35°C";
+        mainLbl.innerText = "NHIỆT ĐỘ NƯỚC";
+      }
+      mainVal.innerText = mainValueText(param);
+      rebuildAllDynamicMeshes();
+    }
+
+    function selectLayer(idx) {
+      const cards = ['card-l1', 'card-l2', 'card-l3'];
+      cards.forEach((c, i) => {
+        let el = document.getElementById(c);
+        if (i === idx) {
+          el.classList.add('border-cyan-400', 'bg-cyan-950/40');
+        } else {
+          el.classList.remove('border-cyan-400', 'bg-cyan-950/40');
+        }
+      });
+      const depths = [0.3, 1.0, 1.8];
+      document.getElementById('depthSlider').value = depths[idx];
+      onDepthSlide(depths[idx]);
+    }
+
+    function onDepthSlide(val) {
+      val = parseFloat(val);
+      sliceDepthFilter = val;
+      const txt = document.getElementById('sliderValTxt');
+      const depthTxt = document.getElementById('curDepthTxt');
+      if (val === 0) {
+        txt.innerText = "Tất cả tầng";
+        depthTxt.innerText = "0.00m";
+      } else {
+        txt.innerText = val.toFixed(2) + "m";
+        depthTxt.innerText = val.toFixed(2) + "m";
+      }
+      buildSlicePlanes();
+    }
+
+    function toggleMesh(type) {
+      visibleMeshes[type] = !visibleMeshes[type];
+    }
+
+    function setCameraView(preset) {
+      document.querySelectorAll('footer button[id^="cam-"]').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('cam-' + preset);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      followBuoyMode = false;
+      if (preset === 'iso') {
+        camera.radius = 25.0; camera.theta = 0.72; camera.phi = 1.02; camera.target = [0, -0.7, 0];
+      } else if (preset === 'top') {
+        camera.radius = 24.0; camera.theta = 0.0;  camera.phi = 0.14; camera.target = [0, 0, 0];
+      } else if (preset === 'side') {
+        camera.radius = 22.0; camera.theta = 1.57; camera.phi = 1.42; camera.target = [0, -0.9, 0];
+      } else if (preset === 'buoy') {
+        followBuoyMode = true;
+        camera.radius = 11.5; camera.theta = 0.65; camera.phi = 1.08;
+        camera.target = [numOr(liveData.posX, 0.0), -0.45, numOr(liveData.posZ, 0.0)];
+      }
+    }
+
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      document.getElementById('btnRotate').innerText = autoRotate ? "Xoay 360°: BẬT" : "Xoay 360°: Tắt";
+    }
+
+    function resetCamera() {
+      setCameraView('iso');
+    }
+
+    function exportSnapshot() {
+      const a = document.createElement('a');
+      a.download = `3D-Water-Map-${new Date().toISOString().slice(0,19)}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }
+
+    function toggleSource() {
+      isLiveMode = !isLiveMode;
+      const badge = document.getElementById('connBadge');
+      const btn = document.getElementById('btnSource');
+      const demoBanner = document.getElementById('demoBanner');
+      if (isLiveMode) {
+        badge.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700/60 font-mono";
+        badge.innerText = hasTelemetry ? "LIVE LoRa GCS" : "CHỜ DỮ LIỆU...";
+        btn.innerText = "Nguồn: Phao Thật";
+        if (demoBanner) demoBanner.classList.add('hidden');
+      } else {
+        badge.className = "text-xs px-2 py-0.5 rounded-full bg-amber-950 text-amber-400 border border-amber-700/60 font-mono";
+        badge.innerText = "MÔ PHỎNG HỒ 3D (DEMO)";
+        btn.innerText = "Nguồn: Mô Phỏng";
+        if (demoBanner) demoBanner.classList.remove('hidden');
+      }
+      rebuildAllDynamicMeshes();
+    }
+
+    // U-01: Trả về null khi chưa có cảm biến nào hợp lệ (tuyệt đối không trả về 85 ảo!)
+    function calcWqiJs(ph, tds, ntu, doVal) {
+      if (ph <= 0.1 && tds <= 0.1 && ntu <= 0.1) return null;
+      let wPh = 100;
+      if (ph > 0.1) {
+        if (ph < 5.5 || ph > 9.0) wPh = 10;
+        else if (ph < 6.5) wPh = 50 + ((ph - 5.5) / 1.0) * 50;
+        else if (ph > 8.5) wPh = 50 + ((9.0 - ph) / 0.5) * 50;
+      }
+      let wDo = 100;
+      if (doVal > 0.1) {
+        if (doVal < 2.0) wDo = 10;
+        else if (doVal < 4.0) wDo = 30;
+        else if (doVal < 6.0) wDo = 65;
+        else wDo = 100;
+      }
+      let wNtu = 100;
+      if (ntu > 0.1) {
+        if (ntu <= 5) wNtu = 100;
+        else if (ntu <= 25) wNtu = 100 - (ntu - 5);
+        else if (ntu <= 75) wNtu = 80 - (ntu - 25) * 0.6;
+        else if (ntu <= 200) wNtu = 50 - (ntu - 75) * 0.2;
+        else wNtu = 15;
+      }
+      let wTds = 100;
+      if (tds > 0.1) {
+        if (tds <= 300) wTds = 100;
+        else if (tds <= 600) wTds = 100 - (tds - 300) * (20 / 300);
+        else if (tds <= 1200) wTds = 80 - (tds - 600) * (35 / 600);
+        else wTds = 30;
+      }
+      let sum = 0, weights = 0;
+      if (ph > 0.1) { sum += wPh * 0.25; weights += 0.25; }
+      if (doVal > 0.1) { sum += wDo * 0.30; weights += 0.30; }
+      if (ntu > 0.1) { sum += wNtu * 0.25; weights += 0.25; }
+      if (tds > 0.1) { sum += wTds * 0.20; weights += 0.20; }
+      return weights > 0 ? Math.round(sum / weights) : null;
+    }
+
+    // --- 8. ĐỒNG BỘ TELEMETRY ĐA NGUỒN (LOCALHOST:8080 & ESP32 AP 192.168.4.1) ---
+    async function fetchTelemetryWithFallback() {
+      const urls = [];
+      if (location.protocol === 'http:' || location.protocol === 'https:') {
+        urls.push('/api/telemetry');
+      }
+      urls.push('http://localhost:8080/api/telemetry');
+      urls.push('http://192.168.4.1/api/telemetry');
+
+      for (const u of urls) {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 850);
+          const res = await fetch(u, { signal: ctrl.signal });
+          clearTimeout(timer);
+          if (res.ok) {
+            return await res.json();
+          }
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    const updateCard = (prefix, data) => {
+      const elPh = document.getElementById(prefix + '-ph');
+      const elTds = document.getElementById(prefix + '-tds');
+      const elNtu = document.getElementById(prefix + '-ntu');
+      const elT = document.getElementById(prefix + '-temp');
+      const elB = document.getElementById(prefix + '-badge');
+      if (!data || !data.valid) {
+        if (elPh) elPh.innerText = '--';
+        if (elTds) elTds.innerText = '-- ppm';
+        if (elNtu) elNtu.innerText = '--';
+        if (elT) elT.innerText = '--°C';
+        if (elB) elB.innerText = 'WQI: --';
+        return;
+      }
+      if (elPh) elPh.innerText = data.ph > 0.1 ? data.ph.toFixed(2) : '0.00';
+      if (elTds) elTds.innerText = Math.round(data.tds) + ' ppm';
+      if (elNtu) elNtu.innerText = Math.round(data.ntu);
+      if (elT) elT.innerText = data.temp.toFixed(1) + '°C';
+      if (elB) elB.innerText = 'WQI: ' + ((data.wqi !== null && data.wqi > 0) ? data.wqi : '--');
+    };
+
+    let teleInFlight = false;
+    async function syncGcsTelemetry() {
+      if (isHistoryReplay) return;
+      if (teleInFlight) return;
+      teleInFlight = true;
+      try {
+        if (!isLiveMode) {
+          // U-02: Chế độ mô phỏng tự hành quanh lòng hồ (Không ghi vào surveyPoints)
+          const t = performance.now() * 0.0004;
+          liveData.posX = Math.sin(t) * 4.2;
+          liveData.posZ = Math.cos(t * 0.8) * 3.5;
+          liveData.hdg  = ((Math.atan2(Math.cos(t), -Math.sin(t * 0.8)) * 180 / Math.PI) + 360) % 360;
+          liveData.depth = 0.3 + (Math.sin(t * 2.5) * 0.5 + 0.5) * 1.5;
+          updateHUD();
+          return;
+        }
+
+        const d = await fetchTelemetryWithFallback();
+        if (d && (numOr(d.seq, 0) > 0 || numOr(d.bat, 0) > 0.5 || numOr(d.temp, 0) > 0.5)) {
+          hasTelemetry = true;
+          const badge = document.getElementById('connBadge');
+          if (badge && isLiveMode) {
+            badge.innerText = d.online ? "LIVE LoRa GCS" : "CẦU NỐI SERIAL";
+          }
+          liveData.seq   = numOr(d.seq,   liveData.seq);
+          liveData.ph    = numOr(d.ph,    liveData.ph);
+          liveData.tds   = numOr(d.tds,   liveData.tds);
+          liveData.ec    = numOr(d.ec,    liveData.ec);
+          liveData.ntu   = numOr(d.ntu,   liveData.ntu);
+          liveData.temp  = numOr(d.temp,  liveData.temp);
+          liveData.do    = numOr(d.do,    liveData.do);
+          liveData.wqi   = (typeof d.wqi === 'number' && d.wqi > 0) ? d.wqi : calcWqiJs(liveData.ph, liveData.tds, liveData.ntu, liveData.do);
+          liveData.bat   = numOr(d.bat,   liveData.bat);
+          liveData.batpct= (typeof d.batpct === 'number' && d.batpct >= 0) ? d.batpct : liveData.batpct;
+          liveData.amp   = numOr(d.amp,   liveData.amp);
+          liveData.depth = numOr(d.dep,   liveData.depth);
+          liveData.roll  = numOr(d.roll,  liveData.roll);
+          liveData.pitch = numOr(d.pitch, liveData.pitch);
+          liveData.hdg   = numOr(d.hdg,   liveData.hdg);
+          liveData.port  = d.port || liveData.port || 'AUTO';
+          liveData.ct1   = numOr(d.ct1,   0);
+          liveData.ct2   = numOr(d.ct2,   0);
+          liveData.hwm   = numOr(d.hwm,   0);
+          liveData.adf   = numOr(d.adf,   0);
+          liveData.flags2= numOr(d.flags2,0);
+          liveData.sats  = numOr(d.sats,  0);
+          liveData.spd   = numOr(d.spd,   0.0);
+          liveData.alt   = numOr(d.alt,   0.0);
+          liveData.homed = numOr(d.homed, 0.0);
+          liveData.tgthdg= numOr(d.tgthdg,0.0);
+          liveData.s3t   = numOr(d.s3t,   0.0);
+          liveData.gcst  = numOr(d.gcst,  0.0);
+          liveData.mtmp  = numOr(d.mtmp,  0.0);
+          liveData.alr   = numOr(d.alr,   0);
+          liveData.lat   = numOr(d.lat,   0.0);
+          liveData.lng   = numOr(d.lng,   0.0);
+          liveData.gpsFix = Boolean(d.gps_fix || (Math.abs(liveData.lat) > 0.001 && Math.abs(liveData.lng) > 0.001));
+          if (liveData.gpsFix) {
+            updateBuoy3DCoordinatesFromGPS(liveData.lat, liveData.lng);
+            recordCurrentWaterColumn();
+          }
+          liveData.rssi  = numOr(d.rssi,  liveData.rssi);
+          liveData.snr   = numOr(d.snr,   liveData.snr);
+
+          const wifiBadge = document.getElementById('wifiBadge');
+          if (wifiBadge) {
+            wifiBadge.innerText = 'WiFi: Mang bao tri' + (d.ip && d.ip !== '127.0.0.1' && d.ip !== '192.168.4.1' ? ' (' + d.ip + ')' : '');
+          }
+
+          const simBadge = document.getElementById('simBadge');
+          if (simBadge) {
+            const isSimOk = (liveData.hwm & (1 << 9)) !== 0;
+            if (isSimOk) {
+              simBadge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-600 font-mono font-bold flex items-center gap-1.5 shadow-sm';
+              simBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 4G LTE: ONLINE';
+            } else {
+              simBadge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-700 font-mono flex items-center gap-1.5';
+              simBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-500"></span> 4G: CHƯA CẮM';
+            }
+          }
+
+          // Cập nhật liên tục thời gian thực vào tầng nước hiện tại theo độ sâu thực tế
+          if (liveData.depth < 0.65) {
+            profileData.surface = { depth: 0.3, ph: liveData.ph, tds: liveData.tds, ntu: liveData.ntu, temp: liveData.temp, do: liveData.do, wqi: liveData.wqi, valid: true };
+            updateCard('l1', profileData.surface);
+          } else if (liveData.depth < 1.40) {
+            profileData.middle = { depth: 1.0, ph: liveData.ph, tds: liveData.tds, ntu: liveData.ntu, temp: liveData.temp, do: liveData.do, wqi: liveData.wqi, valid: true };
+            updateCard('l2', profileData.middle);
+          } else {
+            profileData.bottom = { depth: 1.8, ph: liveData.ph, tds: liveData.tds, ntu: liveData.ntu, temp: liveData.temp, do: liveData.do, wqi: liveData.wqi, valid: true };
+            updateCard('l3', profileData.bottom);
+          }
+
+          if (d.prf) {
+            if (d.prf.s && d.prf.s.v) {
+              profileData.surface = { depth: 0.3, ph: d.prf.s.ph, tds: d.prf.s.tds, ntu: d.prf.s.ntu, temp: d.prf.s.t, do: d.prf.s.do, wqi: calcWqiJs(d.prf.s.ph, d.prf.s.tds, d.prf.s.ntu, d.prf.s.do), valid: true };
+              updateCard('l1', profileData.surface);
+            }
+            if (d.prf.m && d.prf.m.v) {
+              profileData.middle = { depth: 1.0, ph: d.prf.m.ph, tds: d.prf.m.tds, ntu: d.prf.m.ntu, temp: d.prf.m.t, do: d.prf.m.do, wqi: calcWqiJs(d.prf.m.ph, d.prf.m.tds, d.prf.m.ntu, d.prf.m.do), valid: true };
+              updateCard('l2', profileData.middle);
+            }
+            if (d.prf.b && d.prf.b.v) {
+              profileData.bottom = { depth: 1.8, ph: d.prf.b.ph, tds: d.prf.b.tds, ntu: d.prf.b.ntu, temp: d.prf.b.t, do: d.prf.b.do, wqi: calcWqiJs(d.prf.b.ph, d.prf.b.tds, d.prf.b.ntu, d.prf.b.do), valid: true };
+              updateCard('l3', profileData.bottom);
+            }
+          }
+        }
+        updateHUD();
+      } finally {
+        teleInFlight = false;
+      }
+    }
+
+    // U-03: Vòng lặp đồng bộ Telemetry có khoá chống chồng lệnh (Recursive setTimeout 800ms)
+    function scheduleNextTelemetrySync() {
+      syncGcsTelemetry().finally(() => {
+        setTimeout(scheduleNextTelemetrySync, 800);
+      });
+    }
+    scheduleNextTelemetrySync();
+
+    // U-01: Khởi tạo mảng khảo sát RỖNG 100% (chỉ ghi nhận khi có gói tin phần cứng thật!)
+    let surveyPoints = [];
+
+    function mainValueText(param) {
+      if (!hasTelemetry && isLiveMode) return '--';
+      switch (param) {
+        case 'wqi':  return (liveData.wqi !== null && liveData.wqi > 0) ? String(liveData.wqi) : '--';
+        case 'ph':   return (liveData.ph > 0.1) ? liveData.ph.toFixed(2) : '0.00';
+        case 'do':   return (liveData.do > 0) ? liveData.do.toFixed(2) + ' mg/L' : '--';
+        case 'tds':  return Math.round(liveData.tds) + ' ppm';
+        case 'ntu':  return Math.round(liveData.ntu) + ' NTU';
+        case 'temp': return (liveData.temp > 0) ? liveData.temp.toFixed(1) + ' °C' : '--';
+      }
+      return '--';
+    }
+
+    function updateHUD() {
+      if (!hasTelemetry && isLiveMode) {
+        document.getElementById('mainParamVal').innerText = '--';
+        rebuildAllDynamicMeshes();
+        return;
+      }
+      const phConnected = liveData.ph > 0.1;
+      const clampedBat  = Math.max(0.0, liveData.bat || 0.0);
+      const batPct      = (typeof liveData.batpct === 'number' && liveData.batpct > 0) ? liveData.batpct : Math.min(100, Math.max(0, Math.round((clampedBat - 9.0) / 3.6 * 100)));
+
+      document.getElementById('hudSeq').innerText   = '#' + (liveData.seq || 0);
+      document.getElementById('hudPH').innerText    = phConnected ? liveData.ph.toFixed(2) : '0.00 (Chưa cắm)';
+      document.getElementById('hudTDS').innerText   = Math.round(liveData.tds);
+      document.getElementById('hudEC').innerText    = Math.round(liveData.ec > 0 ? liveData.ec : liveData.tds * 2.0);
+      document.getElementById('hudNTU').innerText   = Math.round(liveData.ntu);
+      document.getElementById('hudTemp').innerText  = liveData.temp.toFixed(1);
+      document.getElementById('hudDO').innerText    = liveData.do.toFixed(2);
+      document.getElementById('hudBat').innerText   = clampedBat.toFixed(2) + 'V (' + batPct + '%)';
+      document.getElementById('hudAmp').innerText   = liveData.amp.toFixed(2) + 'A • ' + (clampedBat * liveData.amp).toFixed(1) + 'W';
+      document.getElementById('hudDepth').innerText = liveData.depth.toFixed(2) + 'm' + (liveData.depth < 0.05 ? ' (Home)' : '');
+      document.getElementById('hudImu').innerText   = `R: ${liveData.roll.toFixed(1)}° • P: ${liveData.pitch.toFixed(1)}° • H: ${liveData.hdg.toFixed(0)}°`;
+      document.getElementById('hudGps').innerText   = (Math.abs(liveData.lat) > 0.001) ? `${liveData.lat.toFixed(5)}°N, ${liveData.lng.toFixed(5)}°E` : `0.00000°N, 0.00000°E (Chờ Fix)`;
+      document.getElementById('hudLora').innerText  = `${liveData.rssi} dBm (SNR ${liveData.snr}dB)`;
+      const navEl = document.getElementById('hudNavDist');
+      if (navEl) {
+        navEl.innerText = `${(liveData.spd || 0).toFixed(1)} km/h • ${(liveData.homed || 0).toFixed(1)}m (Mục tiêu: ${(liveData.tgthdg || 0).toFixed(0)}°)`;
+      }
+      const chipEl = document.getElementById('hudChipTemp');
+      if (chipEl) {
+        chipEl.innerText = `S3: ${(liveData.s3t || 0).toFixed(1)}°C • GCS: ${(liveData.gcst || 0).toFixed(1)}°C`;
+      }
+      const limitSwEl = document.getElementById('hudLimitSw');
+      if (limitSwEl) {
+        limitSwEl.innerHTML = `<span class="${liveData.ct1 ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-400'}">CT1(Bùn): ${liveData.ct1 ? 'CHẠM' : '0'}</span> • <span class="${liveData.ct2 ? 'text-amber-300 font-bold' : 'text-slate-400'}">CT2(Gốc): ${liveData.ct2 ? 'HOME' : '0'}</span>`;
+      }
+      const depthModeEl = document.getElementById('hudDepthMode');
+      if (depthModeEl) {
+        const f2 = liveData.flags2 || 0;
+        depthModeEl.innerText = (f2 & 0x0400) ? '🌊 Áp suất MS5837' : ((f2 & 0x0800) ? '🔄 Encoder AS5600' : '⏱️ Ước tính tời');
+      }
+      const anchorEl = document.getElementById('hudAnchor');
+      if (anchorEl) {
+        const f2 = liveData.flags2 || 0;
+        if (f2 & 0x0100) {
+          anchorEl.innerText = 'ĐANG GIỮ VỊ TRÍ (DP ON)';
+          anchorEl.className = 'text-[10px] text-emerald-400 font-bold animate-pulse';
+        } else if (f2 & 0x0001) {
+          anchorEl.innerText = 'ĐANG VỀ HOME (RTH)';
+          anchorEl.className = 'text-[10px] text-amber-300 font-bold animate-pulse';
+        } else if (f2 & 0x0200) {
+          anchorEl.innerText = 'KHÓA HƯỚNG PID';
+          anchorEl.className = 'text-[10px] text-cyan-300 font-bold';
+        } else {
+          anchorEl.innerText = 'Tắt (Chờ lệnh)';
+          anchorEl.className = 'text-[10px] text-slate-400';
+        }
+      }
+      if (typeof updateHardwareModalLive === 'function') updateHardwareModalLive();
+      const profModal = document.getElementById('depthProfileModal');
+      if (profModal && !profModal.classList.contains('hidden') && typeof updateDepthProfileModalLive === 'function') {
+        updateDepthProfileModalLive();
+      }
+
+      const curDepthEl = document.getElementById('curDepthTxt');
+      if (curDepthEl && sliceDepthFilter === 0) {
+        curDepthEl.innerText = liveData.depth.toFixed(2) + 'm';
+      }
+
+      const phStatus = document.getElementById('hudPhStatus');
+      if (phStatus) {
+        if (!phConnected) {
+          phStatus.innerText = 'Ngắt áp giả (GPIO 7 hở)';
+          phStatus.className = 'text-[10px] text-amber-400';
+        } else if (liveData.ph < 6.5) {
+          phStatus.innerText = 'Axit nhẹ';
+          phStatus.className = 'text-[10px] text-amber-400';
+        } else if (liveData.ph <= 8.5) {
+          phStatus.innerText = 'Trung tính / An toàn';
+          phStatus.className = 'text-[10px] text-emerald-400';
+        } else {
+          phStatus.innerText = 'Kiềm';
+          phStatus.className = 'text-[10px] text-amber-400';
+        }
+      }
+
+      // H-10: Phân loại 4 bậc chuẩn QCVN 08:2023/BTNMT (A1 >= 90, A2 75-89, B1 50-74, B2 < 50)
+      const wqiBadge = document.getElementById('wqiStatusBadge');
+      const wqiDesc  = document.getElementById('wqiDesc');
+      const wqiVal   = liveData.wqi;
+      if (wqiBadge && wqiDesc) {
+        if (wqiVal === null || wqiVal <= 0) {
+          wqiBadge.innerText = 'CHỜ CẢM BIẾN';
+          wqiBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-slate-900/60 text-slate-400 border border-slate-700';
+          wqiDesc.innerText  = 'Chưa đủ thông số tính WQI';
+        } else if (wqiVal >= 90) {
+          wqiBadge.innerText = 'RẤT TỐT (MỨC A1)';
+          wqiBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700';
+          wqiDesc.innerText  = 'QCVN 08:2023 (Cấp nước sinh hoạt)';
+        } else if (wqiVal >= 75) {
+          wqiBadge.innerText = 'AN TOÀN (MỨC A2)';
+          wqiBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700';
+          wqiDesc.innerText  = 'QCVN 08:2023 (Sinh hoạt sau xử lý)';
+        } else if (wqiVal >= 50) {
+          wqiBadge.innerText = 'CẢNH BÁO (MỨC B1)';
+          wqiBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700';
+          wqiDesc.innerText  = 'QCVN 08:2023 (Tưới tiêu / Giao thông)';
+        } else {
+          wqiBadge.innerText = 'Ô NHIỄM (MỨC B2)';
+          wqiBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-slate-900 text-red-400 border border-red-400';
+          wqiDesc.innerText  = 'Vượt ngưỡng QCVN 08:2023/BTNMT';
+        }
+      }
+
+      document.getElementById('mainParamVal').innerText = mainValueText(currentParam);
+
+      // U-02: Chỉ ghi nhận điểm khảo sát vào CSV khi đang ở chế độ Phao Thật (isLiveMode) và có mã gói thật
+      if (isLiveMode && hasTelemetry && liveData.seq > 0 && (!surveyPoints.length || surveyPoints[surveyPoints.length - 1].seq !== liveData.seq)) {
+        surveyPoints.push({
+          time: new Date().toLocaleTimeString(),
+          seq: liveData.seq,
+          lat: liveData.lat.toFixed(6),
+          lng: liveData.lng.toFixed(6),
+          depth: liveData.depth.toFixed(2),
+          wqi: liveData.wqi || 0,
+          ph: liveData.ph.toFixed(2),
+          tds: Math.round(liveData.tds),
+          ntu: Math.round(liveData.ntu),
+          temp: liveData.temp.toFixed(1),
+          do: liveData.do.toFixed(2)
+        });
+        if (surveyPoints.length > 500) surveyPoints.shift();
+        const cntEl = document.getElementById('surveyCount');
+        if (cntEl) cntEl.innerText = surveyPoints.length + ' điểm';
+      }
+
+      rebuildAllDynamicMeshes();
+    }
+    updateHUD();
+
+    // --- U-04: TẢI & TUA LỊCH SỬ KHẢO SÁT (TIME SLIDER REPLAY) ---
+    async function loadHistoryReplay() {
+      const urls = ['/api/history', 'http://localhost:8080/api/history'];
+      let rows = null;
+      for (const u of urls) {
+        try {
+          const res = await fetch(u);
+          if (res.ok) {
+            const j = await res.json();
+            if (j && Array.isArray(j.rows) && j.rows.length > 0) {
+              rows = j.rows;
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+      if (!rows || !rows.length) {
+        if (surveyPoints.length > 0) {
+          rows = surveyPoints;
+        } else {
+          showToast("Chưa có lịch sử khảo sát trong gsheets_offline.csv hoặc phiên hiện tại!", "warning");
+          return;
+        }
+      }
+      historyRecords = rows;
+      const slider = document.getElementById('timeSlider');
+      if (slider) {
+        slider.min = 0;
+        slider.max = historyRecords.length - 1;
+        slider.value = historyRecords.length - 1;
+      }
+      onTimeSlide(historyRecords.length - 1);
+    }
+
+    function onTimeSlide(idx) {
+      idx = parseInt(idx, 10);
+      if (!historyRecords.length || isNaN(idx) || idx < 0 || idx >= historyRecords.length) return;
+      isHistoryReplay = true;
+      hasTelemetry = true;
+      const r = historyRecords[idx];
+      liveData.seq   = numOr(Number(r.seq), idx + 1);
+      liveData.ph    = numOr(Number(r.ph), 0.0);
+      liveData.tds   = numOr(Number(r.tds), 0.0);
+      liveData.ntu   = numOr(Number(r.ntu), 0.0);
+      liveData.temp  = numOr(Number(r.temp), 0.0);
+      liveData.do    = numOr(Number(r.do), 0.0);
+      liveData.wqi   = numOr(Number(r.wqi), calcWqiJs(liveData.ph, liveData.tds, liveData.ntu, liveData.do));
+      liveData.bat   = numOr(Number(r.bat), liveData.bat);
+      liveData.depth = numOr(Number(r.depth || r.dep), 0.0);
+      liveData.lat   = numOr(Number(r.lat), 0.0);
+      liveData.lng   = numOr(Number(r.lng), 0.0);
+      const lbl = document.getElementById('timeSliderLbl');
+      if (lbl) lbl.innerText = `${r.time || ('#' + liveData.seq)} (${idx + 1}/${historyRecords.length})`;
+      updateHUD();
+    }
+
+    function exitHistoryReplay() {
+      isHistoryReplay = false;
+      const lbl = document.getElementById('timeSliderLbl');
+      if (lbl) lbl.innerText = 'Trực tiếp (Live)';
+      syncGcsTelemetry();
+    }
+
+    function exportSurveyCsv() {
+      let csv = "ThoiGian,MaGoiSeq,ViDoLat,KinhDoLng,DoSauMet,VN_WQI,DoPH,TongKhoangTDS_ppm,DoDucNTU,NhietDoNuocC,OxyHoaTanDO_mgL\n";
+      surveyPoints.forEach(p => {
+        csv += `${p.time},${p.seq},${p.lat},${p.lng},${p.depth},${p.wqi},${p.ph},${p.tds},${p.ntu},${p.temp},${p.do}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `KhaoSat_ThuyVan_USV_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+    }
+
+    function exportSurveyGpx() {
+      if (!surveyPoints || surveyPoints.length === 0) {
+        alert("Chưa có điểm khảo sát nào trong phiên làm việc hiện tại!");
+        return;
+      }
+      let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="ChemStation AI USV 3D" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata>\n    <name>HanhTrinh_KhaoSat_USV</name>\n    <time>${new Date().toISOString()}</time>\n  </metadata>\n  <trk>\n    <name>LoTrinh_KhaoSat_USV</name>\n    <trkseg>\n`;
+      surveyPoints.forEach(p => {
+        let lat = parseFloat(p.lat);
+        let lng = parseFloat(p.lng);
+        if (isNaN(lat) || isNaN(lng) || (Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001)) return;
+        let d = parseFloat(p.depth) || 0;
+        gpx += `      <trkpt lat="${lat.toFixed(6)}" lon="${lng.toFixed(6)}">\n`;
+        gpx += `        <ele>${(-d).toFixed(2)}</ele>\n`;
+        gpx += `        <time>${new Date().toISOString()}</time>\n`;
+        gpx += `        <name>Seq #${p.seq}</name>\n`;
+        gpx += `        <desc>WQI:${p.wqi} pH:${p.ph} TDS:${p.tds}ppm NTU:${p.ntu} Temp:${p.temp}C DO:${p.do}mg/L</desc>\n`;
+        gpx += `      </trkpt>\n`;
+      });
+      gpx += `    </trkseg>\n  </trk>\n</gpx>`;
+      const blob = new Blob([gpx], { type: 'application/gpx+xml;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `HanhTrinh_GPX_USV_${new Date().toISOString().slice(0,10)}.gpx`;
+      link.click();
+    }
+
+    // --- 9b. BẢNG MẶT CẮT THẲNG ĐỨNG CỘT NƯỚC 2D ---
+    function openDepthProfileModal() {
+      const m = document.getElementById('depthProfileModal');
+      if (m) {
+        m.classList.remove('hidden');
+        updateDepthProfileModalLive();
+      }
+    }
+
+    function closeDepthProfileModal() {
+      const m = document.getElementById('depthProfileModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    function updateDepthProfileModalLive() {
+      const curDepth = Math.max(0.0, Math.min(2.5, liveData.depth || 0.0));
+      const pct = (curDepth / 2.5) * 85 + 5; // 5% to 90% top
+      const marker = document.getElementById('profProbeMarker');
+      if (marker) {
+        marker.style.top = pct + '%';
+        const dEl = document.getElementById('profProbeDepth');
+        if (dEl) dEl.innerText = curDepth.toFixed(2) + 'm';
+        const sEl = document.getElementById('profProbeSource');
+        if (sEl) {
+          const f2 = liveData.flags2 || 0;
+          if (f2 & 0x0400) sEl.innerText = '🌊 MS5837 Thủy Tĩnh';
+          else if (f2 & 0x0800) sEl.innerText = '🔄 AS5600 Encoder';
+          else sEl.innerText = '⏱️ Ước tính tời';
+        }
+      }
+
+      // Populate table
+      const setVal = (id, val, suffix = '') => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = (val !== null && val !== undefined) ? (val + suffix) : '--';
+      };
+
+      setVal('pt-l1-ph', profileData.surface.valid ? profileData.surface.ph : (curDepth < 0.65 ? liveData.ph.toFixed(2) : '--'));
+      setVal('pt-l1-tds', profileData.surface.valid ? profileData.surface.tds : (curDepth < 0.65 ? Math.round(liveData.tds) : '--'), ' ppm');
+      setVal('pt-l1-ntu', profileData.surface.valid ? profileData.surface.ntu : (curDepth < 0.65 ? Math.round(liveData.ntu) : '--'), ' NTU');
+      setVal('pt-l1-do', profileData.surface.valid ? profileData.surface.do : (curDepth < 0.65 ? liveData.do.toFixed(2) : '--'), ' mg/L');
+      setVal('pt-l1-wqi', profileData.surface.valid ? profileData.surface.wqi : (curDepth < 0.65 ? (liveData.wqi || '--') : '--'));
+
+      setVal('pt-l2-ph', profileData.middle.valid ? profileData.middle.ph : ((curDepth >= 0.65 && curDepth < 1.4) ? liveData.ph.toFixed(2) : '--'));
+      setVal('pt-l2-tds', profileData.middle.valid ? profileData.middle.tds : ((curDepth >= 0.65 && curDepth < 1.4) ? Math.round(liveData.tds) : '--'), ' ppm');
+      setVal('pt-l2-ntu', profileData.middle.valid ? profileData.middle.ntu : ((curDepth >= 0.65 && curDepth < 1.4) ? Math.round(liveData.ntu) : '--'), ' NTU');
+      setVal('pt-l2-do', profileData.middle.valid ? profileData.middle.do : ((curDepth >= 0.65 && curDepth < 1.4) ? liveData.do.toFixed(2) : '--'), ' mg/L');
+      setVal('pt-l2-wqi', profileData.middle.valid ? profileData.middle.wqi : ((curDepth >= 0.65 && curDepth < 1.4) ? (liveData.wqi || '--') : '--'));
+
+      setVal('pt-l3-ph', profileData.bottom.valid ? profileData.bottom.ph : (curDepth >= 1.4 ? liveData.ph.toFixed(2) : '--'));
+      setVal('pt-l3-tds', profileData.bottom.valid ? profileData.bottom.tds : (curDepth >= 1.4 ? Math.round(liveData.tds) : '--'), ' ppm');
+      setVal('pt-l3-ntu', profileData.bottom.valid ? profileData.bottom.ntu : (curDepth >= 1.4 ? Math.round(liveData.ntu) : '--'), ' NTU');
+      setVal('pt-l3-do', profileData.bottom.valid ? profileData.bottom.do : (curDepth >= 1.4 ? liveData.do.toFixed(2) : '--'), ' mg/L');
+      setVal('pt-l3-wqi', profileData.bottom.valid ? profileData.bottom.wqi : (curDepth >= 1.4 ? (liveData.wqi || '--') : '--'));
+
+      const qcvnEl = document.getElementById('profQcvnClass');
+      if (qcvnEl) {
+        const wqi = liveData.wqi || 0;
+        if (wqi >= 90) qcvnEl.innerText = 'MỨC A1: Dùng cho cấp nước sinh hoạt, bơi lội, thể thao dưới nước';
+        else if (wqi >= 75) qcvnEl.innerText = 'MỨC A2: Dùng cho mục đích cấp nước sinh hoạt nhưng cần xử lý phù hợp';
+        else if (wqi >= 50) qcvnEl.innerText = 'MỨC B1: Dùng cho tưới tiêu, thủy lợi và nuôi trồng thủy sản';
+        else if (wqi >= 25) qcvnEl.innerText = 'MỨC B2: Giao thông thủy và các mục đích sử dụng nước tương đương';
+        else qcvnEl.innerText = 'Ô NHIỄM NẶNG: Cần có biện pháp xử lý và cảnh báo môi trường khẩn cấp!';
+      }
+    }
+
+    // --- 9. HỆ THỐNG ÂM THANH & GIỌNG NÓI ĐIỀU HƯỚNG THÔNG MINH ---
+    let voiceEnabled = true;
+    let lastVoiceMs = 0;
+
+    function toggleVoiceAlert() {
+      voiceEnabled = !voiceEnabled;
+      const btn = document.getElementById('btnVoice');
+      if (btn) {
+        btn.innerText = voiceEnabled ? "🔊 Giọng Nói: BẬT" : "🔇 Giọng Nói: TẮT";
+      }
+      if (voiceEnabled) speakVoice("Hệ thống âm thanh trợ lý quan trắc đã sẵn sàng.");
+    }
+
+    function speakVoice(text) {
+      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+      let now = Date.now();
+      if (now - lastVoiceMs < 3500) return;
+      lastVoiceMs = now;
+      window.speechSynthesis.cancel();
+      let u = new SpeechSynthesisUtterance(text);
+      u.lang = 'vi-VN';
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    }
+
+    // --- 10. LẬP LỘ TRÌNH HẢI TRÌNH WAYPOINTS TRÊN BẢN ĐỒ 3D ---
+    let isWaypointMode = false;
+    let waypoints = [];
+
+    function toggleWaypointMode() {
+      isWaypointMode = !isWaypointMode;
+      const bar = document.getElementById('wpToolbar');
+      const btn = document.getElementById('btnWp');
+      if (isWaypointMode) {
+        if (bar) bar.classList.remove('hidden');
+        if (btn) btn.classList.add('active');
+        speakVoice("Đã bật chế độ lập lộ trình hải trình.");
+      } else {
+        if (bar) bar.classList.add('hidden');
+        if (btn) btn.classList.remove('active');
+      }
+    }
+
+    function clearWaypoints() {
+      waypoints = [];
+      const cnt = document.getElementById('wpCount');
+      if (cnt) cnt.innerText = '0';
+      speakVoice("Đã xóa toàn bộ lộ trình.");
+    }
+
+    function sendMissionToBuoy() {
+      if (!waypoints.length) {
+        showToast("Chưa có điểm Waypoint nào! Nhấp chuột lên mặt nước để đặt điểm.", "warning");
+        return;
+      }
+      let firstWP = waypoints[0];
+      let dx = firstWP.x - (liveData.posX || 0);
+      let dz = firstWP.z - (liveData.posZ || 0);
+      let bearing = Math.round((Math.atan2(dx, dz) * 180 / Math.PI + 360) % 360);
+      sendCmdWithFallback(`hdg=${bearing}`);
+      speakVoice(`Đã gửi lệnh khóa hướng la bàn ${bearing} độ.`);
+      showToast(`Đã gửi hải trình xuống Phao USV! Hướng mục tiêu: ${bearing}°, số mốc: ${waypoints.length}`, "success");
+    }
+
+    canvas.addEventListener('click', (ev) => {
+      if (!isWaypointMode) return;
+      const pt = screenToWaterPlane(ev.clientX, ev.clientY);
+      waypoints.push({ x: pt.x, z: pt.z, id: waypoints.length + 1 });
+      const cnt = document.getElementById('wpCount');
+      if (cnt) cnt.innerText = waypoints.length;
+      speakVoice(`Đã thêm điểm mốc ${waypoints.length}`);
+      showToast(`Đã thêm điểm mốc #${waypoints.length} tại toạ độ (${pt.x.toFixed(1)}, ${pt.z.toFixed(1)})`, "info", 2000);
+    });
+
+    // --- 11. XUẤT BÁO CÁO THỦY VĂN CHUYÊN NGHIỆP CÓ THỂ IN ẤN ---
+    function generatePrintReport() {
+      const nowStr = new Date().toLocaleString('vi-VN');
+      const clampedBat = Math.max(0.0, liveData.bat || 0.0);
+      const reportHtml = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Báo Cáo Quan Trắc Thủy Văn - USV ChemStation AI</title>
+  <style>
+    body { font-family: 'Times New Roman', serif; margin: 40px; color: #111; line-height: 1.5; }
+    .header { text-align: center; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 20px; }
+    .title { font-size: 20px; font-weight: bold; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    th, td { border: 1px solid #333; padding: 7px 10px; font-size: 13px; text-align: left; }
+    th { background: #f0f4f8; }
+    .footer { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
+    @media print { button { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">BÁO CÁO QUAN TRẮC MÔI TRƯỜNG NƯỚC TỰ ĐỘNG ĐA TẦNG</div>
+    <div>Hệ Thống Phao USV Tự Hành ChemStation AI v4.3-AUDIT-PRO • Tiêu chuẩn QCVN 08:2023/BTNMT</div>
+    <div>Thời điểm trích xuất: ${nowStr} • Mã trạm bờ: GCS-ESP32 (${liveData.port || 'Tự động'}) • Kiểm định CRC-8 phần cứng</div>
+  </div>
+  <h3>1. Thông Số Tổng Quan Hiện Trường</h3>
+  <table>
+    <tr><th>Chỉ số VN-WQI</th><td><b>${liveData.wqi !== null ? liveData.wqi + '/100' : '--'}</b></td><th>Tọa độ GPS</th><td>${liveData.lat.toFixed(5)}°N, ${liveData.lng.toFixed(5)}°E</td></tr>
+    <tr><th>Độ pH</th><td>${liveData.ph > 0.1 ? liveData.ph.toFixed(2) : 'Chưa cắm đầu dò'}</td><th>Oxy hòa tan (DO ước tính)</th><td>${liveData.do.toFixed(2)} mg/L</td></tr>
+    <tr><th>Tổng khoáng TDS</th><td>${Math.round(liveData.tds)} ppm</td><th>Độ dẫn điện EC (quy đổi)</th><td>${Math.round(liveData.ec || liveData.tds * 2)} µS/cm</td></tr>
+    <tr><th>Độ đục NTU</th><td>${Math.round(liveData.ntu)} NTU</td><th>Nhiệt độ nước</th><td>${liveData.temp.toFixed(1)} °C</td></tr>
+    <tr><th>Độ sâu khảo sát</th><td>${liveData.depth.toFixed(2)} m</td><th>Điện áp Pin 3S</th><td>${clampedBat.toFixed(2)} V</td></tr>
+  </table>
+  <h3>2. Phân Tầng Nước 3 Độ Sâu (Profile)</h3>
+  <table>
+    <tr><th>Tầng Nước</th><th>Độ Sâu</th><th>Độ pH</th><th>Khoáng TDS</th><th>Độ Đục</th><th>Nhiệt Độ</th><th>VN-WQI</th></tr>
+    <tr><td><b>1. Tầng Mặt</b></td><td>0.30 m</td><td>${profileData.surface.valid ? profileData.surface.ph : '--'}</td><td>${profileData.surface.valid ? profileData.surface.tds + ' ppm' : '--'}</td><td>${profileData.surface.valid ? profileData.surface.ntu + ' NTU' : '--'}</td><td>${profileData.surface.valid ? profileData.surface.temp + '°C' : '--'}</td><td>${profileData.surface.wqi !== null ? 'WQI ' + profileData.surface.wqi : '--'}</td></tr>
+    <tr><td><b>2. Tầng Giữa</b></td><td>1.00 m</td><td>${profileData.middle.valid ? profileData.middle.ph : '--'}</td><td>${profileData.middle.valid ? profileData.middle.tds + ' ppm' : '--'}</td><td>${profileData.middle.valid ? profileData.middle.ntu + ' NTU' : '--'}</td><td>${profileData.middle.valid ? profileData.middle.temp + '°C' : '--'}</td><td>${profileData.middle.wqi !== null ? 'WQI ' + profileData.middle.wqi : '--'}</td></tr>
+    <tr><td><b>3. Tầng Đáy</b></td><td>1.80 m</td><td>${profileData.bottom.valid ? profileData.bottom.ph : '--'}</td><td>${profileData.bottom.valid ? profileData.bottom.tds + ' ppm' : '--'}</td><td>${profileData.bottom.valid ? profileData.bottom.ntu + ' NTU' : '--'}</td><td>${profileData.bottom.valid ? profileData.bottom.temp + '°C' : '--'}</td><td>${profileData.bottom.wqi !== null ? 'WQI ' + profileData.bottom.wqi : '--'}</td></tr>
+  </table>
+  <div style="text-align:center"><button onclick="window.print()" style="padding:10px 20px;font-size:14px;cursor:pointer">🖨️ IN BẢN BÁO CÁO NÀY</button></div>
+</body>
+</html>`;
+      let win = window.open('', '_blank');
+      win.document.write(reportHtml);
+      win.document.close();
+    }
+
+    function sendCmdWithFallback(queryStr) {
+      const tk = localStorage.getItem('gcs_token') || 'chemstation2026';
+      const hdr = { 'X-GCS-Token': tk };
+      const q = queryStr + '&token=' + encodeURIComponent(tk);
+      fetch('/api/cmd?' + q, { headers: hdr }).catch(() => {
+        fetch('http://localhost:8080/api/cmd?' + q, { headers: hdr }).catch(() => {
+          fetch('http://192.168.4.1/api/cmd?' + q, { headers: hdr }).catch(() => {});
+        });
+      });
+    }
+
+    function triggerBuoyAction(act) {
+      if (act === 'auto') {
+        sendCmdWithFallback('w=3');
+        showToast("Đã gửi lệnh: TỰ ĐỘNG THẢ TỜI ĐO 3 TẦNG NƯỚC (0.3m -> 1.0m -> 1.8m)!", "success");
+      } else if (act === 'anchor_toggle') {
+        const btnAnc = document.getElementById('btnAnchorAct');
+        const isCurrentlyOn = btnAnc && btnAnc.innerText.includes('BẬT');
+        if (isCurrentlyOn) {
+          sendCmdWithFallback('anchor_off=1');
+          btnAnc.innerText = 'NEO ẢO: TẮT';
+        } else {
+          sendCmdWithFallback('anchor_on=1');
+          btnAnc.innerText = 'NEO ẢO: BẬT';
+        }
+      } else if (act === 'winch_home' || act === 'home') {
+        sendCmdWithFallback('w=2');
+        showToast("Đã gửi lệnh: THU TỜI VỀ GỐC HOME (0.0m)!", "warning");
+      } else if (act === 'goto_home') {
+        sendCmdWithFallback('goto=1');
+        showToast("Đã gửi lệnh: TỰ HÀNH QUAY VỀ HOME GPS!", "success");
+      } else if (act === 'clean') {
+        sendCmdWithFallback('clean=1');
+        showToast("Đã gửi lệnh: KÍCH HOẠT CHU TRÌNH SỤC RỬA ĐẦU DÒ (30s)!", "info");
+      } else if (act === 'sample') {
+        sendCmdWithFallback('sample=1');
+        showToast("Đã gửi lệnh: KÍCH HOẠT BƠM LẤY MẪU NƯỚC (20s)!", "success");
+      } else if (act === 'stop_all') {
+        sendCmdWithFallback('stopall=1');
+        showToast("ĐÃ GỬI LỆNH DỪNG KHẨN CẤP TOÀN BỘ!", "error");
+      }
+    }
+  
+    // --- HỆ THỐNG THÔNG BÁO TOAST KHÔNG CHẶN (ZERO-BLOCKING TOAST) ---
+    function showToast(message, type = 'info', duration = 3500) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      let borderCol = 'rgba(56,189,248,0.7)';
+      let icon = 'ℹ️';
+      if (type === 'success') { borderCol = 'rgba(52,211,153,0.85)'; icon = '✅'; }
+      else if (type === 'warning') { borderCol = 'rgba(251,191,36,0.85)'; icon = '⚠️'; }
+      else if (type === 'error') { borderCol = 'rgba(239,68,68,0.85)'; icon = '🛑'; }
+
+      toast.style.cssText = `pointer-events:auto;background:rgba(15,23,42,0.94);backdrop-filter:blur(16px);border:1px solid ${borderCol};border-left:4px solid ${borderCol};padding:12px 16px;border-radius:12px;color:#f1f5f9;font-size:13px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 25px rgba(0,0,0,0.6);transition:all 0.3s cubic-bezier(0.16,1,0.3,1);transform:translateX(100%);opacity:0;`;
+      toast.innerHTML = `<span style="font-size:18px;">${icon}</span><div style="flex:1;line-height:1.4;">${message}</div>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      });
+
+      setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 350);
+      }, duration);
+    }
+
+    // --- BẢNG CHẨN ĐOÁN LINH KIỆN 11 MÓN ---
+    const HW_NAMES_LIST = ["DS18B20", "pH (PH-4502C)", "TDS", "Độ đục (NTU)", "Dòng điện (ACS712)", "Pin 3S (12V)", "MPU6050", "La bàn (GY271)", "LoRa Ra-02", "SIM 4G (A7680C)", "GPS (NEO-6M)"];
+    function openHardwareModal() {
+      const m = document.getElementById('hwModal');
+      if (m) {
+        m.classList.remove('hidden');
+        updateHardwareModalLive();
+      }
+    }
+    function closeHardwareModal() {
+      const m = document.getElementById('hwModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    function updateHardwareModalLive() {
+      const grid = document.getElementById('hwModalGrid');
+      if (!grid) return;
+      let html = '';
+      for (let i = 0; i < HW_NAMES_LIST.length; i++) {
+        const isOk = (liveData.hwm & (1 << i)) !== 0;
+        const color = isOk ? 'text-emerald-400 border-emerald-700/60 bg-emerald-950/40' : 'text-rose-400 border-red-700/60 bg-red-950/40';
+        let status = isOk ? 'KẾT NỐI (OK)' : 'CHƯA CẮM';
+        if (i === 9 && isOk) status = 'ONLINE (SÓNG 4G OK)';
+        html += `<div class="p-2.5 rounded-lg border ${color} flex justify-between items-center shadow-sm">
+          <span class="font-semibold text-xs">${HW_NAMES_LIST[i]}</span>
+          <span class="font-bold text-[11px] font-mono">${status}</span>
+        </div>`;
+      }
+      grid.innerHTML = html;
+
+      const ct1Status = document.getElementById('hwCt1Status');
+      if (ct1Status) {
+        ct1Status.innerText = liveData.ct1 ? 'CẢNH BÁO: CHẠM BÙN ĐÁY!' : 'AN TOÀN (CHƯA CHẠM)';
+        ct1Status.className = liveData.ct1 ? 'font-bold text-rose-400 animate-pulse' : 'font-bold text-emerald-400';
+      }
+      const ct2Status = document.getElementById('hwCt2Status');
+      if (ct2Status) {
+        ct2Status.innerText = liveData.ct2 ? 'ĐÃ VỀ GỐC HOME (0.0m)' : 'LỒNG ĐANG THẢ DƯỚI NƯỚC';
+        ct2Status.className = liveData.ct2 ? 'font-bold text-amber-300' : 'font-bold text-slate-300';
+      }
+      const adcStatus = document.getElementById('hwAdcStatus');
+      if (adcStatus) {
+        adcStatus.innerText = liveData.adf ? `BÃO HÒA ADC (Mã lỗi ${liveData.adf})` : 'BÌNH THƯỜNG (0)';
+        adcStatus.className = liveData.adf ? 'font-bold text-rose-400' : 'font-bold text-emerald-400';
+      }
+    }
+
+    // --- CHEMSTATION AI CO-PILOT ADVISOR ---
+    async function consultAiAdvisor() {
+      showToast("Đang kết nối Trợ lý AI Phân tích Thủy văn...", "info");
+      try {
+        const res = await fetch('/api/ai_consult');
+        if (res.ok) {
+          const aiData = await res.json();
+          renderAiAdvice(aiData);
+          showToast("AI đã cập nhật chẩn đoán thủy văn mới nhất!", "success");
+          if (aiData.diagnostics && aiData.diagnostics.length > 0) {
+            speakVoice(aiData.diagnostics[0]);
+          }
+          return;
+        }
+      } catch (e) {}
+      renderLocalAiAdvice();
+    }
+
+    function renderAiAdvice(aiData) {
+      const riskEl = document.getElementById('aiCoPilotRisk');
+      const diagEl = document.getElementById('aiCoPilotDiag');
+      if (riskEl) {
+        riskEl.innerText = aiData.risk_level || 'AN TOÀN (A1)';
+        riskEl.className = `text-[11px] font-bold mb-1 ${aiData.badge_color === 'red' ? 'text-rose-400 animate-pulse' : (aiData.badge_color === 'amber' ? 'text-amber-300' : 'text-emerald-400')}`;
+      }
+      if (diagEl) {
+        const text = (aiData.diagnostics && aiData.diagnostics.length > 0) ? aiData.diagnostics[0] : (aiData.diagnosis || 'Thông số đạt chuẩn.');
+        diagEl.innerText = text;
+      }
+    }
+
+    function renderLocalAiAdvice() {
+      const ph = liveData.ph || 0.0;
+      const tds = liveData.tds || 0;
+      const ntu = liveData.ntu || 0;
+      let risk = "AN TOÀN (MỨC A1)";
+      let color = "emerald";
+      let diag = "Chất lượng nước đạt tiêu chuẩn QCVN 08:2023/BTNMT cấp nước sinh hoạt.";
+
+      if (liveData.ct1) {
+        risk = "CẢNH BÁO BÙN ĐÁY!"; color = "red"; diag = "Lồng tời đã chạm đáy bùn hồ (CT1 kích hoạt). Hãy thu tời về Home!";
+      } else if (ph > 0.1 && (ph < 5.5 || ph > 9.0)) {
+        risk = "Ô NHIỄM NGUY HIỂM (B2)"; color = "red"; diag = `Độ pH bất thường (${ph.toFixed(2)}): Vượt ngưỡng an toàn sinh thái.`;
+      } else if (tds > 1000) {
+        risk = "CẢNH BÁO KHOÁNG CAO (B1)"; color = "amber"; diag = `Tổng khoáng TDS cao (${tds} ppm): Nguy cơ xâm nhập mặn.`;
+      } else if (ntu > 100) {
+        risk = "CẢNH BÁO ĐỘ ĐỤC (B1)"; color = "amber"; diag = `Độ đục cao (${ntu} NTU): Phù sa hoặc dòng xả đáy lơ lửng.`;
+      }
+
+      renderAiAdvice({ risk_level: risk, badge_color: color, diagnostics: [diag] });
+      showToast("Đã phân tích nhanh theo bộ quy chuẩn QCVN 08:2023", "info");
+    }
+
+    // --- RAY-PLANE INTERSECTION FOR EXACT WAYPOINT PLACEMENT ---
+    function screenToWaterPlane(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const x = ((clientX - rect.left) / canvas.width) * 2 - 1;
+      const y = -(((clientY - rect.top) / canvas.height) * 2 - 1);
+
+      const eyeX = camera.target[0] + camera.radius * Math.sin(camera.phi) * Math.sin(camera.theta);
+      const eyeY = camera.target[1] + camera.radius * Math.cos(camera.phi);
+      const eyeZ = camera.target[2] + camera.radius * Math.sin(camera.phi) * Math.cos(camera.theta);
+
+      let fX = camera.target[0] - eyeX, fY = camera.target[1] - eyeY, fZ = camera.target[2] - eyeZ;
+      let fLen = Math.hypot(fX, fY, fZ) || 1.0;
+      fX /= fLen; fY /= fLen; fZ /= fLen;
+
+      let rX = fZ, rY = 0, rZ = -fX;
+      let rLen = Math.hypot(rX, rZ) || 1.0;
+      rX /= rLen; rZ /= rLen;
+
+      let uX = rY * fZ - rZ * fY, uY = rZ * fX - rX * fZ, uZ = rX * fY - rY * fX;
+
+      const aspect = canvas.width / canvas.height;
+      const tanHalfFov = Math.tan((45 * Math.PI / 180) / 2);
+
+      let dirX = fX + rX * (x * aspect * tanHalfFov) + uX * (y * tanHalfFov);
+      let dirY = fY + rY * (x * aspect * tanHalfFov) + uY * (y * tanHalfFov);
+      let dirZ = fZ + rZ * (x * aspect * tanHalfFov) + uZ * (y * tanHalfFov);
+      let dLen = Math.hypot(dirX, dirY, dirZ) || 1.0;
+      dirX /= dLen; dirY /= dLen; dirZ /= dLen;
+
+      if (Math.abs(dirY) > 1e-4) {
+        let t = -eyeY / dirY;
+        if (t > 0) {
+          let hitX = eyeX + t * dirX;
+          let hitZ = eyeZ + t * dirZ;
+          return { x: Math.max(-10, Math.min(10, hitX)), z: Math.max(-10, Math.min(10, hitZ)) };
+        }
+      }
+      return { x: Math.max(-10, Math.min(10, x * 10.0)), z: Math.max(-10, Math.min(10, -y * 10.0)) };
+    }
+
+  </script>
+
+
+  <!-- Vertical Depth Profile Modal (Mặt Cắt Thẳng Đứng 2D Cột Nước) -->
+  <div id="depthProfileModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="glass-card max-w-2xl w-full p-5 rounded-2xl border border-cyan-400/50 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-700/80 pb-2.5">
+        <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-2">
+          <span>📊 MẶT CẮT THẲNG ĐỨNG CỘT NƯỚC (BATHYMETRIC 2D PROFILE)</span>
+        </h3>
+        <button onclick="closeDepthProfileModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Interactive 2D Water Column Container -->
+        <div class="relative h-80 rounded-xl border border-cyan-500/30 overflow-hidden bg-gradient-to-b from-sky-900/60 via-blue-950/80 to-slate-950 flex flex-col justify-between p-3 font-mono text-[11px]">
+          <div class="border-b border-cyan-400/20 pb-1">
+            <span class="text-sky-300 font-bold">TẦNG MẶT (0.0 - 0.5m)</span>
+            <div class="text-[10px] text-slate-400">Vùng quang hợp, giàu oxy</div>
+          </div>
+          <div class="border-b border-cyan-400/20 py-1">
+            <span class="text-cyan-300 font-bold">TẦNG GIỮA (0.5 - 1.5m)</span>
+            <div class="text-[10px] text-slate-400">Gradient nhiệt độ & DO</div>
+          </div>
+          <div class="pt-1">
+            <span class="text-amber-400 font-bold">TẦNG ĐÁY (&gt;1.5m)</span>
+            <div class="text-[10px] text-slate-400">Cận trầm tích đáy bùn</div>
+          </div>
+
+          <!-- Animated Probe Depth Indicator -->
+          <div id="profProbeMarker" class="absolute left-2 right-2 p-1.5 rounded-lg bg-cyan-500/30 border border-cyan-300 text-cyan-100 flex items-center justify-between shadow-lg transition-all duration-300" style="top: 15%;">
+            <span class="font-bold flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+              ĐẦU DÒ: <span id="profProbeDepth">0.00m</span>
+            </span>
+            <span id="profProbeSource" class="text-[9px] px-1 py-0.5 rounded bg-cyan-900/80 text-cyan-200">Ước tính</span>
+          </div>
+        </div>
+
+        <!-- 3-Layer Measurement Matrix -->
+        <div class="col-span-2 space-y-2.5">
+          <div class="text-xs font-semibold text-slate-300">SỐ LIỆU ĐO THEO TỪNG ĐỘ SÂU (PROFILE MATRIX):</div>
+          <table class="w-full text-xs text-left border-collapse border border-slate-700 rounded-lg overflow-hidden font-mono">
+            <thead>
+              <tr class="bg-slate-800 text-cyan-300">
+                <th class="p-2 border border-slate-700">Tầng</th>
+                <th class="p-2 border border-slate-700">Độ sâu</th>
+                <th class="p-2 border border-slate-700">pH</th>
+                <th class="p-2 border border-slate-700">TDS</th>
+                <th class="p-2 border border-slate-700">NTU</th>
+                <th class="p-2 border border-slate-700">DO</th>
+                <th class="p-2 border border-slate-700">WQI</th>
+              </tr>
+            </thead>
+            <tbody id="profTableBody" class="text-slate-300">
+              <tr class="border-b border-slate-800 bg-slate-900/40">
+                <td class="p-2 font-bold text-sky-300">1. Mặt</td>
+                <td class="p-2">0.30m</td>
+                <td class="p-2" id="pt-l1-ph">--</td>
+                <td class="p-2" id="pt-l1-tds">--</td>
+                <td class="p-2" id="pt-l1-ntu">--</td>
+                <td class="p-2" id="pt-l1-do">--</td>
+                <td class="p-2 font-bold" id="pt-l1-wqi">--</td>
+              </tr>
+              <tr class="border-b border-slate-800 bg-slate-900/20">
+                <td class="p-2 font-bold text-cyan-300">2. Giữa</td>
+                <td class="p-2">1.00m</td>
+                <td class="p-2" id="pt-l2-ph">--</td>
+                <td class="p-2" id="pt-l2-tds">--</td>
+                <td class="p-2" id="pt-l2-ntu">--</td>
+                <td class="p-2" id="pt-l2-do">--</td>
+                <td class="p-2 font-bold" id="pt-l2-wqi">--</td>
+              </tr>
+              <tr class="bg-slate-900/40">
+                <td class="p-2 font-bold text-amber-300">3. Đáy</td>
+                <td class="p-2">1.80m</td>
+                <td class="p-2" id="pt-l3-ph">--</td>
+                <td class="p-2" id="pt-l3-tds">--</td>
+                <td class="p-2" id="pt-l3-ntu">--</td>
+                <td class="p-2" id="pt-l3-do">--</td>
+                <td class="p-2 font-bold" id="pt-l3-wqi">--</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
+            <div class="text-slate-400">Đánh giá theo Quy chuẩn QCVN 08:2023/BTNMT:</div>
+            <div id="profQcvnClass" class="text-emerald-400 font-bold mt-0.5">CHỜ DỮ LIỆU ĐO...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+        <span class="text-[11px] text-slate-400">Cập nhật động theo vị trí thực của tời và cảm biến</span>
+        <div class="flex gap-2">
+          <button onclick="triggerBuoyAction('auto')" class="glass-button px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-300">⚡ Bắt Đầu Đo 3 Tầng</button>
+          <button onclick="closeDepthProfileModal()" class="glass-button px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-300">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hardware 11-Component Self-Diagnosis Modal -->
+  <div id="hwModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="glass-card max-w-2xl w-full p-5 rounded-2xl border border-emerald-400/50 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-700/80 pb-2.5">
+        <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2">
+          <span>🛠️ CHẨN ĐOÁN 11 LINH KIỆN PHẦN CỨNG & CÔNG TẮC HÀNH TRÌNH (REAL-TIME)</span>
+        </h3>
+        <button onclick="closeHardwareModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <div id="hwModalGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-800 text-xs font-mono">
+        <div class="p-2.5 rounded-xl bg-slate-900/70 border border-slate-700/80">
+          <div class="text-[10px] text-slate-400 mb-0.5">CÔNG TẮC ĐÁY BÙN (CT1 - GPIO 19)</div>
+          <div id="hwCt1Status" class="font-bold text-emerald-400">AN TOÀN (CHƯA CHẠM)</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-900/70 border border-slate-700/80">
+          <div class="text-[10px] text-slate-400 mb-0.5">CÔNG TẮC GỐC TỜI (CT2 - GPIO 20)</div>
+          <div id="hwCt2Status" class="font-bold text-amber-300">ĐÃ VỀ GỐC HOME (0.0m)</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-900/70 border border-slate-700/80">
+          <div class="text-[10px] text-slate-400 mb-0.5">CHẨN ĐOÁN KÊNH ADC 12-BIT</div>
+          <div id="hwAdcStatus" class="font-bold text-emerald-400">BÌNH THƯỜNG (0)</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+        <span class="text-[11px] text-slate-400">Kiểm tra trực tiếp qua bitmask phần cứng `hwHealthMask` & `adcFaultMask`</span>
+        <button onclick="closeHardwareModal()" class="glass-button px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-300">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+</body>
+</html>
+
+)rawliteral";
+
+#endif // WEB_3D_MAP_H

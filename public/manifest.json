@@ -1,0 +1,25 @@
+{
+  "name": "USV Aqua-Sentinel // Quan Trắc Thủy Văn AI",
+  "short_name": "AquaSentinel",
+  "description": "Hệ thống giám sát phao nổi quan trắc thủy văn tự động 4G LTE kết hợp LoRa và bản đồ vệ tinh Google Maps HD.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#06b6d4",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><circle cx='96' cy='96' r='90' fill='%230b0f19' stroke='%2306b6d4' stroke-width='10'/><circle cx='96' cy='96' r='60' fill='none' stroke='%2322d3ee' stroke-width='4' stroke-dasharray='10 5'/><path d='M60 120 Q 96 60, 132 120' fill='none' stroke='%2338bdf8' stroke-width='8'/><circle cx='96' cy='65' r='14' fill='%2310b981'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><circle cx='256' cy='256' r='240' fill='%230b0f19' stroke='%2306b6d4' stroke-width='24'/><circle cx='256' cy='256' r='160' fill='none' stroke='%2322d3ee' stroke-width='12' stroke-dasharray='25 15'/><path d='M160 320 Q 256 160, 352 320' fill='none' stroke='%2338bdf8' stroke-width='20'/><circle cx='256' cy='180' r='36' fill='%2310b981'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity", "navigation"]
+}

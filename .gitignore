@@ -1,0 +1,36 @@
+# PlatformIO & Python build/cache
+.pio/
+__pycache__/
+*.pyc
+.env
+
+# Logs, offline data dumps, scratch & agent skills
+*.log
+*.log.*
+logs/
+scratch/
+data/
+gsheets_offline.csv
+gsheets_offline.csv.*
+component_images/
+.agents/
+Chon
+
+# Sensitive keys & unrelated projects in local workspace (not part of USV ChemStation)
+hisense_keys/
+check_mute.py
+debug_pyvidaa.py
+gui_lenh_tat_tivi.py
+set_vol0.py
+test_all_combos.py
+test_mute.py
+BAT_TAT_MAY_TU_XA.bat
+remote_shutdown_server.py
+PCCommandCenter.vbs
+SETUP_AUTORUN_FIREWALL.bat
+KICH_HOAT_VIRTUAL_MACHINE_PLATFORM.bat
+main.py
+nap_code.py
+NAP_CODE_ROBOT.bat
+ORC_2027_ROBOT_YOLO_UNO.json
+web_dieu_khien_robot.html
